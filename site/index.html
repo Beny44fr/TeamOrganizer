@@ -512,6 +512,14 @@
   details.past[open] > summary .chev{transform:rotate(180deg)}
   details.past[open] > summary{border-bottom:1px solid var(--hair-2)}
 
+  /* ---------------- badge de l'hébergeur ---------------- */
+  /* Netlify insère un badge fixé en bas à droite. Au téléphone, il recouvrait les
+     onglets Équité et Réglages : on le remonte en haut de l'écran, où il ne
+     gêne ni la barre d'onglets ni le bouton Fermer des feuilles. */
+  @media(max-width:720px){
+    #nl-badge-frame{top:env(safe-area-inset-top,0px)!important;bottom:auto!important}
+  }
+
   /* ---------------- premier démarrage ---------------- */
   .ob{max-width:660px;margin:0 auto}
   .ob-steps{display:flex;gap:7px;margin:2px 0 20px}
