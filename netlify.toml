@@ -1,0 +1,23 @@
+# Netlify sert le contenu du dossier site/. Aucune étape de build : le fichier
+# index.html est autonome.
+[build]
+  publish = "site"
+  command = ""
+
+# index.html et le service worker ne doivent jamais être servis depuis un cache
+# périmé, sinon une mise à jour du dépôt reste invisible.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

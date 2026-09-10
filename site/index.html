@@ -1,0 +1,2674 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gestion de l'équipe de basket</title>
+<meta name="description" content="Convocations, roulements de transport, bar et maillots, suivi de l'équité entre familles. Les données restent sur l'appareil.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F7F8FA" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#14171C" media="(prefers-color-scheme:dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mon équipe">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  html,body{margin:0;padding:0;background:#F7F8FA}
+  @media (prefers-color-scheme:dark){html,body{background:#14171C}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<style>
+  :root{
+    color-scheme:light;
+    --acc:#FF6B1A; --acc-d:#E2560B; --acc-s:rgba(255,107,26,.12); --acc-on:#fff;
+    --ok:#2FA96A; --ok-d:#1E7A4B; --warn:#C88A12; --bad:#E5484D;
+    --t1:#16181C; --t2:#5E6470; --t3:#9096A2;
+    --hair:rgba(20,24,33,.10); --hair-2:rgba(20,24,33,.055);
+    --ink5:rgba(20,24,33,.05); --ink7:rgba(20,24,33,.07);
+    --s1:rgba(255,255,255,.74);   /* surface principale, translucide */
+    --s2:rgba(255,255,255,.52);   /* surface secondaire */
+    --s3:#fff;                    /* champs et éléments posés dessus */
+    --s-solid:#FCFDFD;            /* colonnes figées, listes */
+    --sheet:#F4F6F8;
+    --blur:saturate(180%) blur(24px);
+    --r:18px; --r-s:13px; --tap:46px;
+    --sab:env(safe-area-inset-bottom,0px);
+    --sh-1:0 1px 2px rgba(20,24,33,.05);
+    --sh-2:0 2px 6px -2px rgba(20,24,33,.10), 0 10px 28px -14px rgba(20,24,33,.22);
+    --sh-3:0 8px 30px rgba(20,24,33,.20);
+    --bg:
+      radial-gradient(1000px 520px at 10% -10%, rgba(255,138,61,.16), transparent 62%),
+      radial-gradient(820px 480px at 98% 2%, rgba(90,160,255,.14), transparent 64%),
+      linear-gradient(180deg,#F7F8FA 0%,#EFF1F4 100%);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      color-scheme:dark;
+      --acc:#FF7A33; --acc-d:#FF9457; --acc-s:rgba(255,122,51,.16); --acc-on:#20120A;
+      --ok:#3ECF8E; --ok-d:#5FE0A6; --warn:#E5B23C; --bad:#FF6369;
+      --t1:#F2F4F7; --t2:#A7AEBC; --t3:#767D8C;
+      --hair:rgba(255,255,255,.13); --hair-2:rgba(255,255,255,.075);
+      --ink5:rgba(255,255,255,.06); --ink7:rgba(255,255,255,.09);
+      --s1:rgba(38,42,50,.72); --s2:rgba(38,42,50,.46); --s3:#2C313A; --s-solid:#22262D;
+      --sheet:#181B21;
+      --sh-1:0 1px 2px rgba(0,0,0,.30);
+      --sh-2:0 2px 8px -2px rgba(0,0,0,.42), 0 14px 32px -16px rgba(0,0,0,.6);
+      --sh-3:0 10px 34px rgba(0,0,0,.55);
+      --bg:
+        radial-gradient(1000px 540px at 8% -12%, rgba(255,122,51,.15), transparent 60%),
+        radial-gradient(820px 480px at 98% 0%, rgba(70,120,220,.16), transparent 62%),
+        linear-gradient(180deg,#14171C 0%,#0F1216 100%);
+    }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);background-attachment:fixed;min-height:100dvh}
+  @supports not (height:1dvh){body{min-height:100vh}}
+  #app{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--t1);font-size:15.5px;line-height:1.45;-webkit-font-smoothing:antialiased;
+    max-width:920px;margin:0 auto;position:relative;
+    padding-bottom:calc(100px + var(--sab));
+  }
+  #app h1,#app h2,#app h3{margin:0;font-weight:640;letter-spacing:-.022em}
+  #app p{margin:0}
+  #app button{font-family:inherit;font-size:inherit;cursor:pointer;color:inherit}
+  #app a{color:var(--acc-d);text-decoration:none}
+  .ic{flex:none;vertical-align:-3px}
+  #app,.ov,.sheet,.toast{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  .ov,.sheet,.toast{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--t1);font-size:15.5px;line-height:1.45
+  }
+  /* 16px sur tout champ saisissable : seuil sous lequel iOS zoome au focus */
+  #app input,#app select,#app textarea,
+  .ov input,.ov select,.ov textarea,
+  .f input,.f select,.f textarea,.crow input,.salle input,
+  input[type=date],input[type=time],input[type=number],input[type=email],input[type=tel]{
+    font-size:16px !important;line-height:1.35
+  }
+  #app input,#app select,#app textarea,.ov input,.ov select,.ov textarea{
+    font-family:inherit;color:var(--t1);max-width:100%;min-width:0
+  }
+  #app button,#app label,.ov button,.ov label,.chip,.tab{touch-action:manipulation}
+
+  /* ---------------- en-tête ---------------- */
+  .top{padding:22px 18px 8px}
+  .top h1{font-size:27px;letter-spacing:-.032em}
+  .top .sub{font-size:13.5px;color:var(--t2);margin-top:3px}
+  .wrap{padding:10px 18px 6px;animation:fade .22s ease-out}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* ---------------- onglets ---------------- */
+  .tabbar{
+    position:sticky;top:8px;z-index:40;margin:6px 18px 6px;
+    display:flex;gap:4px;padding:5px;border-radius:17px;
+    background:var(--s1);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--hair);box-shadow:var(--sh-2)
+  }
+  .tab{
+    flex:1 1 0;min-width:0;border:0;background:transparent;border-radius:13px;
+    padding:9px 2px;font-size:11.5px;font-weight:600;color:var(--t2);
+    display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;
+    min-height:54px;justify-content:center;transition:color .16s,background .16s
+  }
+  .tab span:not(.bdg){overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .tab[aria-selected="true"]{background:var(--s3);color:var(--acc-d);box-shadow:var(--sh-1)}
+  .tab .bdg{
+    position:absolute;top:5px;right:calc(50% - 21px);background:var(--acc);color:var(--acc-on);
+    border-radius:999px;min-width:17px;height:17px;display:grid;place-items:center;
+    font-size:10.5px;font-weight:700;padding:0 4px
+  }
+  @media(max-width:720px){
+    .tabbar{
+      position:fixed;top:auto;bottom:0;left:0;right:0;margin:0;border-radius:0;
+      border:0;border-top:1px solid var(--hair);box-shadow:0 -1px 24px rgba(20,24,33,.10);
+      padding:5px 6px calc(5px + var(--sab));gap:0;max-width:none
+    }
+    .tab{border-radius:11px;gap:2px;min-height:50px}
+    .tab[aria-selected="true"]{background:transparent;color:var(--acc);box-shadow:none}
+    .tab[aria-selected="true"]::after{
+      content:'';position:absolute;top:2px;width:22px;height:3px;border-radius:2px;background:var(--acc)
+    }
+    .top{padding:18px 16px 2px}
+    .top h1{font-size:25px}
+    .wrap{padding:6px 16px}
+  }
+
+  /* ---------------- surfaces ---------------- */
+  .card{
+    background:var(--s1);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--sh-1);overflow:hidden
+  }
+  .card + .card{margin-top:12px}
+  .card-h{padding:14px 16px;border-bottom:1px solid var(--hair-2);display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .card-h h3{font-size:15px}
+  .card-b{padding:16px}
+  .muted{color:var(--t2);font-size:13.5px}
+  .tiny{color:var(--t3);font-size:12.5px;line-height:1.45}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .sec-title{
+    font-size:12px;font-weight:700;color:var(--t3);margin:24px 0 10px;
+    display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:.055em
+  }
+  .sec-title .ic{color:var(--t3)}
+
+  /* ---------------- prochain match ---------------- */
+  .hero{
+    border-radius:22px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden;
+    background:var(--s1);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--hair);box-shadow:var(--sh-2)
+  }
+  .hero::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(135deg,var(--acc-s),transparent 55%)
+  }
+  .hero > *{position:relative}
+  .hero .lbl{font-size:11px;font-weight:700;color:var(--acc-d);text-transform:uppercase;letter-spacing:.08em}
+  .hero h2{font-size:22px;margin-top:5px;letter-spacing:-.03em}
+  .hero .when{font-size:13.5px;color:var(--t2);margin-top:3px}
+  .hero .htimes{display:flex;gap:22px;margin-top:15px}
+  .hero .htimes div span{display:block;font-size:11px;color:var(--t3);font-weight:640;text-transform:uppercase;letter-spacing:.05em}
+  .hero .htimes div b{display:block;font-size:27px;font-variant-numeric:tabular-nums;letter-spacing:-.035em;line-height:1.1;margin-top:3px}
+  .hero .htimes .hi b{color:var(--acc-d)}
+  .hero .hact{display:flex;gap:8px;margin-top:16px}
+  .hero .hact .btn{flex:1}
+
+  /* ---------------- boutons ---------------- */
+  .btn{
+    background:var(--acc);color:var(--acc-on);border:0;border-radius:14px;
+    padding:12px 16px;font-weight:640;font-size:14.5px;min-height:var(--tap);
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    box-shadow:var(--sh-1);transition:transform .12s,background .16s,opacity .16s
+  }
+  .btn:hover{background:var(--acc-d)}
+  .btn:active{transform:scale(.972)}
+  .btn.ghost{background:var(--s1);color:var(--t1);border:1px solid var(--hair);box-shadow:none;backdrop-filter:var(--blur)}
+  .btn.ghost:hover{background:var(--s3)}
+  .btn.sm{padding:8px 12px;font-size:13.5px;border-radius:11px;min-height:38px}
+  .btn.danger{background:rgba(229,72,77,.10);color:var(--bad);border:1px solid rgba(229,72,77,.24);box-shadow:none}
+  .btn.danger:hover{background:rgba(229,72,77,.16)}
+  .btn.wide{width:100%}
+  .btn:disabled{opacity:.45;pointer-events:none}
+  .link{background:none;border:0;color:var(--acc-d);font-weight:620;padding:8px 0;font-size:14px;min-height:38px;display:inline-flex;align-items:center;gap:6px}
+  .link:hover{text-decoration:underline}
+  .link.subtle{color:var(--t2);font-weight:600;font-size:13.5px;gap:5px}
+  .link.subtle:hover{color:var(--acc-d)}
+  .btn:focus-visible,.tab:focus-visible,.chip:focus-visible,.jchip:focus-visible,.seg button:focus-visible,
+  .prow:focus-visible,.match:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--acc);outline-offset:2px
+  }
+
+  .actionbar{
+    position:sticky;bottom:0;z-index:20;margin:18px -18px 0;
+    padding:11px 18px calc(11px + var(--sab));
+    background:var(--s1);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border-top:1px solid var(--hair);display:flex;gap:8px
+  }
+  .actionbar .btn{flex:1 1 auto}
+  .actionbar .btn.ico{flex:0 0 52px;padding:0}
+  @media(max-width:720px){
+    .actionbar{bottom:calc(60px + var(--sab));margin:18px -16px 0;padding:11px 16px}
+  }
+
+  /* ---------------- formulaires ---------------- */
+  .f{display:block;margin-bottom:15px}
+  .f > span{display:block;font-size:12.5px;font-weight:640;color:var(--t2);margin-bottom:6px}
+  .f input,.f select,.f textarea{
+    width:100%;display:block;padding:12px 13px;border:1px solid var(--hair);border-radius:14px;
+    background:var(--s3);min-height:var(--tap);transition:border-color .15s,box-shadow .15s
+  }
+  .f input:focus,.f select:focus,.f textarea:focus{
+    border-color:var(--acc);outline:none;box-shadow:0 0 0 3px var(--acc-s)
+  }
+  .f input[type=date],.f input[type=time],.f input[type=number]{-webkit-appearance:none;appearance:none;text-align:left}
+  .f input[type=number]{-moz-appearance:textfield}
+  .f input::-webkit-date-and-time-value{text-align:left;min-height:21px}
+  .f input::-webkit-calendar-picker-indicator{opacity:.55;padding-left:6px}
+  .f textarea{min-height:150px;line-height:1.55;resize:vertical}
+  .f select{appearance:none;-webkit-appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--t2) 50%),linear-gradient(135deg,var(--t2) 50%,transparent 50%);
+    background-position:calc(100% - 19px) 51%,calc(100% - 13px) 51%;
+    background-size:6px 6px,6px 6px;background-repeat:no-repeat;padding-right:38px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 10px}
+  .grid2 > *{min-width:0}
+  .check{display:flex;align-items:center;gap:11px;min-height:var(--tap);font-size:14.5px}
+  .check input{width:21px;height:21px;accent-color:var(--acc);flex:none;min-height:0}
+  .inline{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+  .inline .f{flex:1 1 150px;margin-bottom:0;min-width:0}
+  .inline .btn{flex:0 1 auto;white-space:nowrap}
+
+  .seg{
+    display:flex;background:var(--ink7);border:1px solid var(--hair);
+    border-radius:14px;padding:3px;gap:3px
+  }
+  .seg button{
+    flex:1 1 0;min-width:0;border:0;background:transparent;padding:11px 6px;border-radius:11px;
+    font-weight:620;color:var(--t2);font-size:14.5px;min-height:44px;
+    display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;
+    transition:background .16s,color .16s,box-shadow .16s
+  }
+  .seg button:hover{color:var(--t1)}
+  /* état actif franc : remplissage plein, plus la pastille blanche sur gris pâle */
+  .seg button[aria-pressed="true"]{
+    background:var(--t1);color:var(--sheet);box-shadow:var(--sh-1)
+  }
+  .seg button[aria-pressed="true"] .ic{opacity:.9}
+  /* le choix du lieu reprend les couleurs des pastilles domicile / extérieur */
+  .seg.lieu button[data-v="domicile"][aria-pressed="true"]{background:var(--ok-d);color:#fff}
+  .seg.lieu button[data-v="exterieur"][aria-pressed="true"]{background:var(--acc);color:var(--acc-on)}
+  .seg.mini button[aria-pressed="true"]{background:var(--acc);color:var(--acc-on)}
+  /* méthode de planification : vert pour l'ajout, rouge pour l'effacement */
+  .seg.meth button[data-mode="fill"][aria-pressed="true"]{background:var(--ok-d);color:#fff}
+  .seg.meth button[data-mode="all"][aria-pressed="true"]{background:var(--bad);color:#fff}
+  @media(max-width:400px){.seg button{font-size:13.5px;gap:4px;padding:11px 4px}}
+  .nbsel{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  .seg.mini{width:auto;flex:none;padding:3px;border-radius:12px}
+  .seg.mini button{flex:0 0 auto;min-width:38px;min-height:34px;padding:6px 10px;font-size:13.5px;font-variant-numeric:tabular-nums}
+
+  .drop{
+    border:1.5px dashed var(--hair);border-radius:var(--r);padding:28px 18px;
+    text-align:center;background:var(--s2);transition:.16s;cursor:pointer
+  }
+  .drop:hover{background:var(--s3);border-color:var(--acc)}
+  .drop.over{background:var(--acc-s);border-color:var(--acc);border-style:solid}
+  .drop .dz-ic{color:var(--acc);margin-bottom:9px}
+  .drop b{display:block;font-size:15px;font-weight:640;margin-bottom:3px}
+
+  /* ---------------- listes ---------------- */
+  .prow{
+    width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--hair-2);
+    padding:11px 16px;display:flex;gap:12px;align-items:center;min-height:62px;transition:background .14s
+  }
+  .prow:hover{background:var(--s2)}
+  .prow .grow{flex:1;min-width:0}
+  .name{font-weight:620;font-size:15px}
+  .meta{font-size:12.5px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .avatar{
+    width:38px;height:38px;border-radius:13px;background:var(--ink7);color:var(--t2);
+    display:grid;place-items:center;font-size:13px;font-weight:700;flex:none
+  }
+  .avatar.c{background:var(--acc-s);color:var(--acc-d)}
+  .chev{color:var(--t3);transition:transform .2s}
+  .chev.open{transform:rotate(180deg)}
+  .panel{padding:2px 16px 15px 66px;border-bottom:1px solid var(--hair-2);background:var(--s2)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:680;background:var(--ink7);color:var(--t2);vertical-align:1px}
+  .pill.dom{background:rgba(47,169,106,.16);color:var(--ok-d)}
+  .pill.ext{background:var(--acc-s);color:var(--acc-d)}
+  .pill.off{background:rgba(229,72,77,.14);color:var(--bad)}
+  .pill.coach{background:var(--acc-s);color:var(--acc-d)}
+  .pill.next{background:var(--acc);color:var(--acc-on)}
+
+  .ctl{display:flex;flex-direction:column;gap:5px;margin-top:2px}
+  .ct{font-size:13.5px;color:var(--t2);display:flex;gap:8px;align-items:center}
+  .ct b{color:var(--t3);font-weight:620;font-size:12px;min-width:74px;flex:none}
+  .ct a{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .crow{display:grid;grid-template-columns:minmax(0,36%) minmax(0,1fr);gap:8px;margin-bottom:8px;align-items:start}
+  .crow input{padding:12px 11px;border:1px solid var(--hair);border-radius:13px;background:var(--s3);width:100%;min-height:var(--tap)}
+  .crow .lb{color:var(--t2);font-weight:600}
+  .crow.del{grid-template-columns:minmax(0,34%) minmax(0,1fr) 44px}
+  .crow.del button{padding:0;min-height:var(--tap);border-radius:13px}
+  @media(max-width:440px){
+    .crow{grid-template-columns:1fr;gap:6px;margin-bottom:12px}
+    .crow .lb{min-height:40px;padding:9px 11px;background:var(--ink5);border-style:dashed}
+    .crow.del{grid-template-columns:minmax(0,1fr) 44px}
+    .crow.del .vl{grid-column:1/-1}
+  }
+
+  .salle{border:1px solid var(--hair);border-radius:16px;padding:13px;margin-bottom:10px;background:var(--s2);transition:.16s}
+  .salle .s-top{display:flex;gap:8px;margin-bottom:8px}
+  .salle .s-nom{flex:1;min-width:0;font-weight:640}
+  .salle input{padding:11px 12px;border:1px solid var(--hair);border-radius:12px;background:var(--s3);width:100%;min-height:44px}
+  .salle .s-del{flex:none;width:46px;padding:0;min-height:44px;border-radius:12px;color:var(--bad)}
+  .salle .s-bot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap}
+  .salle .s-def{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:620;color:var(--t2);min-height:32px;cursor:pointer}
+  .salle .s-def input{width:20px;height:20px;min-height:0;accent-color:var(--acc);flex:none;padding:0}
+  .salle:has(.s-def input:checked){border-color:var(--acc);background:var(--acc-s)}
+  .salle:has(.s-def input:checked) .s-def{color:var(--acc-d)}
+
+  /* ---------------- matchs ---------------- */
+  .match{
+    display:flex;width:100%;text-align:left;background:transparent;padding:0;
+    border:0;border-bottom:1px solid var(--hair-2);position:relative;transition:background .14s
+  }
+  .match:hover{background:var(--s2)}
+  .match.is-next::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc)}
+  .mdate{flex:none;width:66px;padding:15px 0;text-align:center}
+  .mdate b{display:block;font-size:23px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.035em}
+  .mdate span{display:block;font-size:11.5px;color:var(--t3);margin-top:4px;text-transform:capitalize}
+  .mbody{flex:1;padding:13px 16px 13px 4px;min-width:0}
+  .mbody .l1{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .mbody .l1 .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mbody .l2{font-size:12.5px;color:var(--t3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .duty{display:inline-flex;gap:6px;margin-top:8px;align-items:center}
+  .duty i{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;background:var(--ink5);color:var(--t3)}
+  .duty i.ok{background:rgba(47,169,106,.16);color:var(--ok-d)}
+
+  .clock{display:flex;border-radius:var(--r);overflow:hidden;background:var(--s2);border:1px solid var(--hair)}
+  .clock > div{flex:1;padding:15px 8px;text-align:center;border-right:1px solid var(--hair-2);min-width:0}
+  .clock > div:last-child{border-right:0}
+  .clock span{display:block;font-size:10.5px;color:var(--t3);margin-bottom:6px;font-weight:660;text-transform:uppercase;letter-spacing:.06em}
+  .clock b{display:block;font-size:26px;font-variant-numeric:tabular-nums;letter-spacing:-.04em;line-height:1}
+  .clock i{display:block;font-style:normal;font-size:11.5px;color:var(--t3);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .clock .hi{background:var(--acc-s)}
+  .clock .hi b{color:var(--acc-d)}
+
+  /* ---------------- équité ---------------- */
+  .brow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--hair-2)}
+  .brow:last-child{border-bottom:0}
+  .bname{font-size:14.5px;font-weight:620;min-width:0}
+  .bname small{display:block;font-weight:500;color:var(--t3);font-size:12px;margin-top:1px}
+  .bnums{display:flex;align-items:center;gap:9px;white-space:nowrap}
+  .kv{display:inline-flex;align-items:center;gap:3px;font-size:13px;font-weight:640;font-variant-numeric:tabular-nums}
+  .kv.tr{color:var(--acc-d)} .kv.ba{color:var(--warn)} .kv.la{color:var(--ok-d)}
+  .kv.z{color:var(--t3);opacity:.45}
+  .btot{font-variant-numeric:tabular-nums;font-size:16px;font-weight:700;padding-left:10px;border-left:1px solid var(--hair)}
+  @media(max-width:400px){.bnums{gap:7px}.kv{font-size:12.5px}}
+  .bars{grid-column:1/-1;display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--ink7)}
+  .bars i{display:block;height:100%}
+  .b-tr{background:var(--acc)}.b-bar{background:var(--warn)}.b-lav{background:var(--ok)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:15px;font-size:12.5px;color:var(--t2)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+
+  /* ---------------- convocations ---------------- */
+  .jhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .jhead b{font-size:14.5px}
+  .jgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:8px}
+  .jchip{
+    display:flex;align-items:center;gap:9px;min-height:54px;padding:7px 12px 7px 7px;
+    border:1px solid var(--hair);border-radius:15px;background:var(--s2);
+    text-align:left;transition:transform .12s,background .16s,border-color .16s
+  }
+  .jchip:active{transform:scale(.965)}
+  .jav{width:34px;height:34px;border-radius:11px;flex:none;display:grid;place-items:center;
+    background:var(--ink7);color:var(--t2);font-size:12px;font-weight:700}
+  .jnm{flex:1;min-width:0;font-size:14.5px;font-weight:620;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jn{font-size:12px;font-weight:680;color:var(--t3);font-variant-numeric:tabular-nums;flex:none}
+  .jchip[data-et="c"]{background:var(--acc);border-color:var(--acc);box-shadow:var(--sh-1)}
+  .jchip[data-et="c"] .jnm{color:var(--acc-on)}
+  .jchip[data-et="c"] .jav{background:rgba(255,255,255,.24);color:var(--acc-on)}
+  .jchip[data-et="c"] .jn{color:var(--acc-on);opacity:.75}
+  .jchip[data-et="a"]{background:rgba(229,72,77,.08);border-color:rgba(229,72,77,.3)}
+  .jchip[data-et="a"] .jnm{color:var(--bad);text-decoration:line-through;text-decoration-thickness:1px}
+  .jchip[data-et="a"] .jav{background:rgba(229,72,77,.16);color:var(--bad)}
+  .msg{cursor:text}
+  .msg:hover{border-color:var(--acc)}
+  .absline{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--bad);
+    background:rgba(229,72,77,.08);border:1px solid rgba(229,72,77,.20);border-radius:13px;padding:10px 12px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    border:1px solid var(--hair);background:var(--s2);border-radius:999px;
+    padding:9px 15px;font-size:14px;font-weight:620;color:var(--t2);min-height:44px;
+    display:inline-flex;align-items:center;gap:5px;transition:transform .12s,background .16s
+  }
+  .chip:active{transform:scale(.96)}
+  .chip[data-on="1"]{background:var(--acc);border-color:var(--acc);color:var(--acc-on);box-shadow:var(--sh-1)}
+  .chip .n{font-variant-numeric:tabular-nums;opacity:.55;font-weight:620;font-size:12px}
+  .chip[data-on="1"] .n{opacity:.8}
+  .chip.done{opacity:.42}
+  .chip.done[data-on="1"]{opacity:1;background:var(--bad);border-color:var(--bad);color:#fff}
+  .task{border:1px solid var(--hair);border-radius:var(--r);padding:15px;margin-bottom:11px;background:var(--s2)}
+  .task .th{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px}
+  .task .th b{font-size:14.5px;display:flex;align-items:center;gap:7px}
+
+  .msg{
+    background:var(--s2);border:1px solid var(--hair);color:var(--t1);
+    border-radius:var(--r);padding:16px;white-space:pre-wrap;font-size:14px;line-height:1.65;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-x:auto
+  }
+
+  /* ---------------- tableaux ---------------- */
+  .pllist{max-height:264px;overflow:auto;border:1px solid var(--hair);border-radius:14px;background:var(--s3);-webkit-overflow-scrolling:touch}
+  .plitem{display:flex;align-items:center;gap:11px;padding:10px 12px;border-bottom:1px solid var(--hair-2);min-height:54px;cursor:pointer}
+  .plitem:last-child{border-bottom:0}
+  .plitem input{width:21px;height:21px;accent-color:var(--acc);flex:none;min-height:0}
+  .plitem b{font-size:14px;font-weight:620;display:block}
+  .plitem .sub{display:block;font-size:12px;color:var(--t3);margin-top:1px}
+  .plprev td.chg{background:var(--acc-s);font-weight:620}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.recap{border-collapse:collapse;width:100%;min-width:670px;font-size:13.5px}
+  .recap th,.recap td{padding:12px 13px;border-bottom:1px solid var(--hair-2);text-align:left;vertical-align:top}
+  .recap th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);font-weight:700;white-space:nowrap;background:var(--s1)}
+  .recap th .ic{vertical-align:-2px;margin-right:2px}
+  .recap tbody tr:last-child td{border-bottom:0}
+  .recap td.mt,.recap th.mt{position:sticky;left:0;z-index:1;min-width:150px;
+    background:var(--s-solid);backdrop-filter:blur(8px);box-shadow:1px 0 0 var(--hair-2)}
+  .recap .lnk{background:none;border:0;padding:0;font-weight:640;font-size:14px;color:var(--t1);text-align:left}
+  .recap .lnk:hover{color:var(--acc-d);text-decoration:underline}
+  .recap .sub{display:block;font-size:11.5px;color:var(--t3);margin-top:2px;white-space:nowrap}
+  .recap .num{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:620}
+  .recap .miss{color:var(--bad);font-weight:620}
+  .recap .na{color:var(--t3)}
+  .recap tr.pastrow td{opacity:.5}
+  .recap tr.pastrow .miss{color:var(--t3);font-weight:500}
+
+  /* ---------------- modale ---------------- */
+  .ov{position:fixed;inset:0;background:rgba(12,15,20,.42);backdrop-filter:blur(4px);display:grid;place-items:end center;z-index:80;animation:fade .16s ease-out}
+  .sheet{
+    background:var(--sheet);width:100%;max-width:920px;max-height:92dvh;overflow-y:auto;overflow-x:hidden;
+    border-radius:24px 24px 0 0;padding:0 18px calc(34px + var(--sab));
+    animation:up .26s cubic-bezier(.32,.72,0,1);overscroll-behavior:contain;box-shadow:var(--sh-3)
+  }
+  @supports not (height:1dvh){.sheet{max-height:92vh}}
+  @media(max-width:440px){.sheet{padding:0 14px calc(34px + var(--sab))}}
+  .sheet .card-b{padding:15px 14px}
+  .sheet .row > .btn{flex:1 1 auto}
+  @keyframes up{from{transform:translateY(26px);opacity:.4}to{transform:none;opacity:1}}
+  @media(prefers-reduced-motion:reduce){
+    .sheet,.ov,.wrap{animation:none}
+    .btn:active,.chip:active,.jchip:active{transform:none}
+  }
+  .sheet-h{
+    position:sticky;top:0;z-index:2;background:var(--sheet);
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:14px 0 13px;border-bottom:1px solid var(--hair)
+  }
+  .sheet-h h2{font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sheet .card{margin-top:14px}
+  .grab{width:38px;height:5px;border-radius:3px;background:var(--hair);margin:9px auto 0}
+
+  .empty{padding:36px 20px;text-align:center;color:var(--t2);font-size:14px;line-height:1.5}
+  .empty b{display:block;color:var(--t1);margin-bottom:5px;font-size:15.5px}
+  .empty .ic{color:var(--t3);margin-bottom:11px}
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + var(--sab));
+    background:var(--t1);color:var(--sheet);padding:12px 20px;border-radius:999px;
+    font-size:14px;font-weight:620;z-index:99;box-shadow:var(--sh-3);
+    display:flex;align-items:center;gap:8px;animation:up .2s ease-out
+  }
+  .toast .tundo{
+    background:rgba(255,255,255,.16);border:0;color:inherit;font:inherit;font-weight:700;
+    padding:6px 12px;border-radius:999px;margin-left:4px;display:inline-flex;align-items:center;gap:5px;
+    font-size:13px
+  }
+  .toast .tundo:hover{background:rgba(255,255,255,.28)}
+  .warn{background:rgba(240,180,20,.14);border:1px solid rgba(200,138,18,.3);color:var(--warn);border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.45;margin-top:9px}
+  .hintbox{
+    background:rgba(47,169,106,.11);border:1px solid rgba(47,169,106,.24);color:var(--ok-d);
+    border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.45;
+    margin:6px 0 16px;display:flex;gap:10px;align-items:flex-start
+  }
+  .hintbox .ic{margin-top:1px;flex:none}
+  .hintbox b{display:block;font-size:14px;font-weight:640}
+  .hintbox .sub{color:var(--ok-d);opacity:.85;font-size:12.5px;margin-top:3px;line-height:1.4}
+  .hintbox .alts{opacity:.65}
+  .hintbox.alt{background:rgba(240,180,20,.14);border-color:rgba(200,138,18,.3);color:var(--warn)}
+  .hintbox.alt .sub{color:var(--warn)}
+  #m_hint:empty{display:none}
+  #m_hint .warn{margin:6px 0 16px}
+
+  details.past{margin-top:12px}
+  details.past > summary{
+    list-style:none;cursor:pointer;padding:15px 16px;font-weight:620;font-size:14.5px;
+    display:flex;justify-content:space-between;align-items:center;min-height:var(--tap);gap:8px
+  }
+  details.past > summary::-webkit-details-marker{display:none}
+  details.past > summary .chev{margin-left:auto}
+  details.past[open] > summary .chev{transform:rotate(180deg)}
+  details.past[open] > summary{border-bottom:1px solid var(--hair-2)}
+
+  /* ---------------- premier démarrage ---------------- */
+  .ob{max-width:660px;margin:0 auto}
+  .ob-steps{display:flex;gap:7px;margin:2px 0 20px}
+  .ob-steps i{flex:1;height:4px;border-radius:2px;background:var(--ink7);transition:background .2s}
+  .ob-steps i.on{background:var(--acc)}
+  .ob-steps i.done{background:var(--ok)}
+  .ob-lbl{font-size:11.5px;font-weight:700;color:var(--acc-d);text-transform:uppercase;letter-spacing:.08em}
+  .ob h2{font-size:24px;margin-top:6px}
+  .ob .lead{color:var(--t2);font-size:14.5px;margin-top:9px;line-height:1.55}
+  .ob-nav{display:flex;gap:8px;margin-top:18px}
+  .ob-nav .btn{flex:1}
+  .ob-nav .btn.back{flex:0 0 auto;padding-left:14px;padding-right:16px}
+  .ob-done{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--ok-d);
+    background:rgba(47,169,106,.11);border:1px solid rgba(47,169,106,.24);
+    border-radius:13px;padding:11px 13px;margin-bottom:12px}
+  .ob-done .ic{flex:none;margin-top:1px}
+  .ob-done b{font-weight:640}
+
+  /* ---------------- ordinateur ---------------- */
+  /* Pointeur précis : cibles plus compactes, l'application respire moins large
+     que sur un écran tactile où le doigt impose 46 px. */
+  @media (pointer:fine){
+    :root{--tap:40px}
+    .btn{min-height:40px;padding:10px 15px}
+    .btn.sm{min-height:34px}
+    .chip{min-height:38px;padding:8px 14px}
+    .check{min-height:38px}
+    .seg button{min-height:38px;padding:9px 6px}
+    .plitem{min-height:44px}
+    .jchip{min-height:48px}
+    .prow{min-height:56px}
+    .link{min-height:32px}
+    .salle input,.salle .s-del{min-height:40px}
+    .only-tactile{display:none}
+    /* la barre d'onglets n'a pas besoin d'être aussi haute sans le pouce */
+    .tab{min-height:48px;font-size:12px}
+  }
+  /* Écran large : deux colonnes, et les feuilles deviennent des boîtes de
+     dialogue centrées — remonter du bas n'a de sens qu'au pouce. */
+  @media (min-width:900px){
+    #app{max-width:1140px;padding-bottom:64px}
+    .top{padding:26px 24px 8px}
+    .top h1{font-size:29px}
+    .tabbar{margin:8px 24px 8px;top:12px}
+    .wrap{padding:12px 24px 20px}
+    .actionbar{margin:20px -24px 0;padding:13px 24px calc(13px + var(--sab))}
+    .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 22px;align-items:start}
+    .cols > .colspan{grid-column:1/-1}
+    .cols > .col > .sec-title:first-child{margin-top:20px}
+    .cols > .col > .card:first-child{margin-top:0}
+    table.recap{min-width:0}
+    .recap thead th{position:sticky;top:0;z-index:2}
+    .recap th.mt{z-index:3}
+    .ov{place-items:center;padding:24px}
+    .sheet{
+      max-width:760px;max-height:84dvh;border-radius:var(--r);
+      padding:0 22px 24px;animation:pop .2s cubic-bezier(.32,.72,0,1)
+    }
+    .grab{display:none}
+    .sheet-h{padding:17px 0 14px}
+    .toast{bottom:32px}
+  }
+  @supports not (height:1dvh){@media(min-width:900px){.sheet{max-height:84vh}}}
+  /* Empilées, les colonnes se suivent comme des blocs ordinaires : il faut
+     rétablir l'espacement que la grille apportait par son gap. */
+  @media(max-width:899px){
+    .cols > .col + .col,.cols > .col + .colspan,.cols > .colspan + .col{margin-top:12px}
+  }
+  @keyframes pop{from{transform:scale(.975);opacity:0}to{transform:none;opacity:1}}
+  @media(prefers-reduced-motion:reduce){.sheet{animation:none}}
+  /* Trait de focus visible partout au clavier, y compris sur les zones cliquables
+     qui ne sont pas des boutons natifs. */
+  .drop:focus-visible,.plitem:focus-visible,.msg:focus-visible,
+  details.past > summary:focus-visible,.lnk:focus-visible,.link:focus-visible{
+    outline:2px solid var(--acc);outline-offset:2px;border-radius:8px
+  }
+</style>
+<script>
+(function(){
+const KEY='basket-referent-v1';
+const $=document.getElementById('app');
+let S=null, view={tab:'matchs',match:null,expP:null,expC:null}, mem={};
+
+/* ============ icônes ============ */
+const IC={
+ cal:'<rect x="3" y="4.5" width="18" height="16.5" rx="3.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+ users:'<circle cx="9" cy="8" r="3.3"/><path d="M2.8 20.2c0-3.5 2.8-5.6 6.2-5.6s6.2 2.1 6.2 5.6"/><path d="M16.6 5.7a3.3 3.3 0 0 1 0 6.4M18 15c2 .8 3.2 2.5 3.2 5.2"/>',
+ scale:'<path d="M12 3.2v17.6M7 20.8h10M6 7h12"/><path d="M6 7 3 13.4h6zM18 7l-3 6.4h6z"/><path d="M3 13.4a3 3 0 0 0 6 0M15 13.4a3 3 0 0 0 6 0"/>',
+ gear:'<circle cx="12" cy="12" r="3.1"/><path d="M12 2.4v3M12 18.6v3M2.4 12h3M18.6 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ up:'<path d="M12 16.5V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.6A1.4 1.4 0 0 0 5.4 20h13.2a1.4 1.4 0 0 0 1.4-1.4V15"/>',
+ down:'<path d="M12 4v12.5M7.5 12 12 16.5 16.5 12"/><path d="M4 15v3.6A1.4 1.4 0 0 0 5.4 20h13.2a1.4 1.4 0 0 0 1.4-1.4V15"/>',
+ copy:'<rect x="9" y="9" width="11.5" height="11.5" rx="3"/><path d="M5.6 15H5A1.5 1.5 0 0 1 3.5 13.5v-8A1.5 1.5 0 0 1 5 4h8A1.5 1.5 0 0 1 14.5 5.5V6"/>',
+ mail:'<rect x="2.5" y="5" width="19" height="14" rx="3.5"/><path d="m3.6 7.4 8.4 5.8 8.4-5.8"/>',
+ car:'<path d="M3.6 16.6v-3.3l1.8-4.4a2 2 0 0 1 1.9-1.3h9.4a2 2 0 0 1 1.9 1.3l1.8 4.4v3.3z"/><path d="M4.6 16.6v2.2M19.4 16.6v2.2"/><circle cx="7.6" cy="13.9" r="1.05"/><circle cx="16.4" cy="13.9" r="1.05"/>',
+ cup:'<path d="M6 4.2h11v6.2a5.5 5.5 0 0 1-11 0z"/><path d="M17 5.8h1.8a2.4 2.4 0 0 1 0 4.8H17M8 20h7"/>',
+ shirt:'<path d="M8.6 3.2 5 5.2v4l2.6.8V21h8.8V10l2.6-.8v-4l-3.6-2a3.4 3.4 0 0 1-6.8 0z"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 6.8V12l3.3 2"/>',
+ board:'<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4V3h6v1M8.6 10.5h6.8M8.6 14.5h4.4"/>',
+ pin:'<path d="M12 21.2s7-6.5 7-11.2a7 7 0 1 0-14 0c0 4.7 7 11.2 7 11.2z"/><circle cx="12" cy="10" r="2.6"/>',
+ back:'<path d="M14.5 5 8 12l6.5 7"/>',
+ chev:'<path d="M5.5 9 12 15.5 18.5 9"/>',
+ x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+ trash:'<path d="M4.5 6.5h15M9 6.5V4.6h6v1.9M6.6 6.5 7.5 20a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l.9-13.5"/>',
+ edit:'<path d="m5 19.2 1.1-4.2L16.6 4.6a2.1 2.1 0 0 1 3 3L9.1 18.1z"/>',
+ wand:'<path d="m4 20 8.6-8.6M14.6 3.4l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9zM19.2 13.2l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+ check:'<path d="m5 12.6 4.6 4.6L19 7.4"/>',
+ file:'<path d="M13.6 3H7.2A2.2 2.2 0 0 0 5 5.2v13.6A2.2 2.2 0 0 0 7.2 21h9.6a2.2 2.2 0 0 0 2.2-2.2V8.6z"/><path d="M13.6 3v5.6H19"/>',
+ home:'<path d="M4 10.4 12 3.6l8 6.8V20a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 20z"/>',
+ route:'<circle cx="6" cy="18.4" r="2.4"/><circle cx="18" cy="5.6" r="2.4"/><path d="M15.6 5.6H9.6a3.6 3.6 0 0 0 0 7.2h4.8a3.6 3.6 0 0 1 0 7.2H8.4"/>',
+ save:'<path d="M5 4.5h11L19.5 8v11a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19V6A1.5 1.5 0 0 1 6 4.5z"/><path d="M8 4.5v5h7v-5M8 20.5v-5.6h8v5.6"/>',
+ refresh:'<path d="M20.4 12a8.4 8.4 0 1 1-2.5-6"/><path d="M20.6 4.4v5.2h-5.2"/>',
+ ics:'<rect x="3" y="4.5" width="18" height="16.5" rx="3.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M12 12.5v5M9.8 15.3 12 17.5l2.2-2.2"/>',
+ ban:'<circle cx="12" cy="12" r="8.6"/><path d="m6.2 6.2 11.6 11.6"/>',
+ undo:'<path d="M3.6 12a8.4 8.4 0 1 0 2.5-6"/><path d="M3.4 4.4v5.2h5.2"/>',
+ phone:'<path d="M7.7 3.6h-2A2.2 2.2 0 0 0 3.5 6c.4 3.6 2 7 4.5 9.6 2.5 2.6 5.8 4.3 9.4 4.8a2.2 2.2 0 0 0 2.4-2.2v-2a1.5 1.5 0 0 0-1.3-1.5l-2.3-.3a1.5 1.5 0 0 0-1.5.7l-.7 1.2a12.4 12.4 0 0 1-5.3-5.3l1.2-.7a1.5 1.5 0 0 0 .7-1.5l-.3-2.3a1.5 1.5 0 0 0-1.5-1.3z"/>',
+ map:'<path d="m9 4.2-5.2 2.1a1 1 0 0 0-.6.9v12.1a.7.7 0 0 0 1 .65L9 17.8l6 2.2 5.2-2.1a1 1 0 0 0 .6-.9V4.9a.7.7 0 0 0-1-.65L15 6.4z"/><path d="M9 4.2v13.6M15 6.4V20"/>'
+};
+const I=(n,s)=>`<svg class="ic" width="${s||19}" height="${s||19}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${IC[n]||''}</svg>`;
+
+/* ============ modèles de message ============ */
+const TPL_DOM=`🏀 {equipe} — convocation
+📅 {date}
+🆚 {adversaire} · à domicile
+📍 {salle}
+🕐 Match à {heure}
+⏰ Rendez-vous à {rdv} au gymnase ({avant} min avant)
+
+Joueurs convoqués ({nb}) :
+{joueurs}
+
+👤 Coachs : {coachs}
+🥤 Bar : {bar}
+🧺 Maillots : {lavage}
+
+Merci de me prévenir au plus vite en cas d'absence.`;
+
+const TPL_EXT=`🏀 {equipe} — convocation
+📅 {date}
+🆚 {adversaire} · à l'extérieur
+📍 {salle}
+{adresse}
+🕐 Match à {heure}
+🚗 Départ groupé à {rdv} depuis {depart} — trajet estimé {trajet} min
+⏰ Arrivée sur place vers {arrivee} ({avant} min avant)
+
+Joueurs convoqués ({nb}) :
+{joueurs}
+
+👤 Coachs : {coachs}
+🚗 Conducteurs : {transport}
+🧺 Maillots : {lavage}
+
+Merci de me prévenir au plus vite en cas d'absence.`;
+
+/* ============ stockage ============ */
+/* Stockage : API des artefacts Claude si présente, sinon localStorage du navigateur,
+   sinon mémoire volatile. Permet au même fichier de tourner dans les deux contextes. */
+const LS=(()=>{try{const k='__t';localStorage.setItem(k,'1');localStorage.removeItem(k);return true}catch(e){return false}})();
+async function save(){
+  const t=JSON.stringify(S);
+  try{ if(window.storage&&window.storage.set){await window.storage.set(KEY,t);return} }catch(e){}
+  try{ if(LS){localStorage.setItem(KEY,t);return} }catch(e){}
+  mem[KEY]=t;
+}
+async function load(){
+  try{ if(window.storage&&window.storage.get){const r=await window.storage.get(KEY);if(r&&r.value)return JSON.parse(r.value)} }catch(e){}
+  try{ if(LS){const v=localStorage.getItem(KEY);if(v)return JSON.parse(v)} }catch(e){}
+  if(mem[KEY]){try{return JSON.parse(mem[KEY])}catch(e){}}
+  return null;
+}
+
+
+/* ============ utilitaires ============ */
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* « Touchez » au doigt, « Cliquez » à la souris : les explications suivent le
+   matériel au lieu d'imposer le vocabulaire du téléphone sur un ordinateur. */
+const COARSE=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return false}})();
+const TAP=COARSE?'Touchez':'Cliquez', tap=COARSE?'touchez':'cliquez';
+const P=id=>S.players.find(p=>p.id===id);
+const full=id=>{const p=P(id);return p?p.prenom+' '+p.nom:'?'};
+const pre=id=>{
+  const p=P(id); if(!p)return '?';
+  const dup=S.players.some(o=>o.id!==id&&(o.prenom||'').toLowerCase()===(p.prenom||'').toLowerCase());
+  return p.prenom+(dup?' '+(p.nom||'').charAt(0).toUpperCase()+'.':'');
+};
+const ST=id=>S.staff.find(s=>s.id===id);
+const staffName=id=>{const s=ST(id);return s?(s.prenom+' '+s.nom).trim():'?'};
+const coachName=id=>{
+  const s=ST(id); if(!s)return '?';
+  const dup=S.staff.some(o=>o.id!==id&&(o.prenom||'').toLowerCase()===(s.prenom||'').toLowerCase());
+  return (s.prenom||s.nom)+(dup?' '+(s.nom||'').charAt(0).toUpperCase()+'.':'');
+};
+const isStaffFam=pid=>{const p=P(pid);return !!(p&&p.coach)||S.staff.some(s=>s.joueur===pid)};
+const staffOf=pid=>S.staff.filter(s=>s.joueur===pid);
+const eligible=()=>S.players.filter(p=>p.actif&&!(S.settings.exemptStaff&&isStaffFam(p.id)));
+const initials=p=>((p.prenom||'')[0]||'')+((p.nom||'')[0]||'');
+
+const salles=()=>S.settings.salles||[];
+const salleAdr=n=>{const s=salles().find(x=>x.nom===n);return s?(s.adresse||''):''};
+function salleOpts(sel){
+  const l=salles().map(s=>s.nom);
+  if(sel&&!l.includes(sel))l.unshift(sel);
+  return l.map(n=>`<option${n===sel?' selected':''}>${esc(n)}</option>`).join('');
+}
+/* Tant qu'aucune salle n'est enregistrée — la toute première saisie — le champ
+   est libre plutôt qu'une liste vide : le nom tapé rejoint les réglages au
+   moment d'enregistrer. L'ordre du parcours de démarrage reste donc libre. */
+function salleField(id,sel,ph){
+  return salles().length
+    ? `<select id="${id}">${salleOpts(sel)}</select>`
+    : `<input id="${id}" value="${esc(sel||'')}" placeholder="${esc(ph||'Nom de la salle')}">`;
+}
+function registerSalle(nom){
+  nom=String(nom||'').trim();
+  if(!nom)return '';
+  const dej=salles().find(s=>s.nom.toLowerCase()===nom.toLowerCase());
+  if(dej)return dej.nom;
+  S.settings.salles=salles().concat({id:uid(),nom:nom,adresse:''});
+  if(!S.settings.salleDef)S.settings.salleDef=nom;
+  return nom;
+}
+
+function normHeure(h){
+  if(!h)return '';
+  const m=/^(\d{1,2})\s*[h:.]\s*(\d{0,2})$/.exec(String(h).trim());
+  if(!m)return String(h);
+  return String(+m[1]).padStart(2,'0')+':'+(m[2]||'00').padEnd(2,'0');
+}
+function toMin(t){if(!t)return null;const m=/^(\d{1,2})[h:.](\d{2})$/.exec(String(t).trim());return m?+m[1]*60+ +m[2]:null}
+function toHM(v){if(v==null)return '—';v=((v%1440)+1440)%1440;return String(Math.floor(v/60)).padStart(2,'0')+'h'+String(v%60).padStart(2,'0')}
+function frDate(d){const dt=new Date(d+'T12:00:00');return isNaN(dt)?(d||''):dt.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}
+function dayNum(d){const dt=new Date(d+'T12:00:00');return isNaN(dt)?'?':dt.getDate()}
+function dayName(d){const dt=new Date(d+'T12:00:00');return isNaN(dt)?'':dt.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')}
+function rel(d){
+  const t=new Date();t.setHours(12,0,0,0);
+  const dt=new Date(d+'T12:00:00'); if(isNaN(dt))return '';
+  const j=Math.round((dt-t)/86400000);
+  if(j===0)return "aujourd'hui"; if(j===1)return 'demain';
+  if(j>1&&j<8)return dt.toLocaleDateString('fr-FR',{weekday:'long'});
+  if(j>=8&&j<31)return 'dans '+j+' jours';
+  return '';
+}
+const sortedMatches=()=>[...S.matches].sort((a,b)=>((a.date||'')+(a.heure||'')).localeCompare((b.date||'')+(b.heure||'')));
+
+function times(m){
+  const h=toMin(m.heure), av=+S.settings.avant||45;
+  if(h==null)return {rdv:null,arrivee:null};
+  if(m.lieu==='domicile')return {rdv:h-av,arrivee:h-av};
+  return {rdv:h-av-(+m.trajet||0),arrivee:h-av};
+}
+
+/* ============ modèle de données ============ */
+/* Application vierge : aucune donnée d'exemple n'est livrée avec le site.
+   settings.onboarding porte l'étape du parcours de démarrage, 0 une fois terminé. */
+function blank(){
+  return {
+    settings:{equipe:'',salles:[],salleDef:'',avant:45,exemptStaff:true,
+              tplDom:TPL_DOM,tplExt:TPL_EXT,onboarding:1},
+    players:[], staff:[], matches:[]
+  };
+}
+function uid(){return Math.random().toString(36).slice(2,10)}
+
+/* ============ contacts ============ */
+function autoLabel(v,i,kind){
+  if(kind==='tel')return /^0\s*[1-59]/.test(String(v))?'Fixe':'Tél '+(i+1);
+  return 'Parent '+(i+1);
+}
+function normContacts(arr,kind){
+  return (arr||[]).map((x,i)=>typeof x==='string'?{label:autoLabel(x,i,kind),value:x}:x)
+    .filter(x=>x&&x.value);
+}
+const contacts=a=>(a||[]).filter(x=>x&&x.value);
+
+/* ============ migration ============ */
+function migrate(){
+  S.staff=S.staff||[]; S.settings=S.settings||{}; S.players=S.players||[]; S.matches=S.matches||[];
+  if(!Array.isArray(S.settings.salles))S.settings.salles=[];
+  S.settings.salles=S.settings.salles.map(s=>typeof s==='string'?{nom:s,adresse:''}:s).filter(s=>s&&s.nom);
+  S.settings.salles.forEach(s=>{if(!s.id)s.id=uid()});
+  /* la salle par défaut suit la liste : vide tant qu'aucune salle n'est saisie */
+  if(!S.settings.salles.some(s=>s.nom===S.settings.salleDef))
+    S.settings.salleDef=S.settings.salles.length?S.settings.salles[0].nom:'';
+  /* Le parcours de démarrage ne s'affiche que pour une installation neuve :
+     une sauvegarde restaurée ou des données déjà saisies l'ont dépassé. */
+  if(S.settings.onboarding===undefined)
+    S.settings.onboarding=(S.players.length||S.matches.length||S.settings.salles.length)?0:1;
+  delete S.settings.salle; delete S.settings.trajetDef;
+  delete S.settings.defMontbert; delete S.settings.coachsAjoutes;
+  if(S.settings.exemptStaff===undefined)S.settings.exemptStaff=true;
+  if(!S.settings.avant)S.settings.avant=45;
+  S.players.forEach(p=>{p.mails=normContacts(p.mails,'mail');p.tels=normContacts(p.tels,'tel')});
+  S.staff.forEach(s=>{
+    s.mails=normContacts(s.mails&&s.mails.length?s.mails:(s.mail?[s.mail]:[]),'mail');
+    s.tels=normContacts(s.tels&&s.tels.length?s.tels:(s.tel?[s.tel]:[]),'tel');
+    delete s.mail;delete s.tel;delete s.role;
+  });
+  S.matches.forEach(m=>{
+    if(!Array.isArray(m.staff))m.staff=S.staff.map(s=>s.id);
+    if(!Array.isArray(m.absents))m.absents=[];
+    if(!m.depart)m.depart=(m.lieu==='domicile'?(m.salle||S.settings.salleDef):S.settings.salleDef);
+    m.heure=normHeure(m.heure);
+  });
+  if(!S.settings.tplDom)S.settings.tplDom=TPL_DOM;
+  if(!S.settings.tplExt)S.settings.tplExt=TPL_EXT;
+  ['tplDom','tplExt'].forEach(k=>{
+    S.settings[k]=S.settings[k]
+      .replace(/👤 Encadrement : \{encadrement\}/g,'👤 Coachs : {coachs}')
+      .replace(/\{encadrement\}/g,'{coachs}');
+    if(!S.settings[k].includes('{coachs}'))
+      S.settings[k]=S.settings[k].includes('{joueurs}')
+        ? S.settings[k].replace('{joueurs}','{joueurs}\n\n👤 Coachs : {coachs}')
+        : S.settings[k]+'\n👤 Coachs : {coachs}';
+  });
+}
+
+/* communes du secteur, pour estimer les trajets */
+const COMMUNES=[
+ ['MONTBERT',47.0442,-1.4867],['GENESTON',47.0119,-1.4936],['LE BIGNON',47.0692,-1.4767],
+ ['LA PLANCHE',47.0044,-1.4406],['VIEILLEVIGNE',47.0033,-1.4008],['REMOUILLE',47.0439,-1.3825],
+ ['AIGREFEUILLE SUR MAINE',47.0839,-1.4025],['MAISDON SUR SEVRE',47.0958,-1.3572],
+ ['CHATEAU THEBAUD',47.1108,-1.4319],['SAINT FIACRE SUR MAINE',47.135,-1.3939],
+ ['MONNIERES',47.1247,-1.3564],['LE PALLET',47.1467,-1.32],['MOUZILLON',47.1425,-1.2778],
+ ['LA HAYE FOUASSIERE',47.1667,-1.3936],['LA CHAPELLE HEULIN',47.1408,-1.3428],
+ ['GORGES',47.1017,-1.3025],['CLISSON',47.0872,-1.2811],['GETIGNE',47.0664,-1.2683],
+ ['SAINT HILAIRE DE CLISSON',47.0533,-1.2681],['CUGAND',47.0619,-1.2803],['BOUSSAY',47.0053,-1.1958],
+ ['VALLET',47.1614,-1.2678],['LE LOROUX BOTTEREAU',47.2372,-1.3494],
+ ['SAINT JULIEN DE CONCELLES',47.2431,-1.3839],['HAUTE GOULAINE',47.1908,-1.4139],
+ ['BASSE GOULAINE',47.2094,-1.4611],['VERTOU',47.1686,-1.4686],
+ ['SAINT SEBASTIEN SUR LOIRE',47.2081,-1.5011],['LES SORINIERES',47.1522,-1.5286],
+ ['REZE',47.1833,-1.5667],['NANTES',47.2184,-1.5536],['BOUGUENAIS',47.1717,-1.6236],
+ ['SAINT HERBLAIN',47.2172,-1.6472],['ORVAULT',47.2711,-1.6217],['CARQUEFOU',47.2986,-1.4936],
+ ['SAINTE LUCE SUR LOIRE',47.2508,-1.4831],['COUERON',47.2153,-1.7222],
+ ['PONT SAINT MARTIN',47.1189,-1.5825],['SAINT AIGNAN GRANDLIEU',47.1219,-1.6208],
+ ['LA CHEVROLIERE',47.0642,-1.6242],['BOUAYE',47.145,-1.69],['SAINT COLOMBAN',47.0006,-1.5486],
+ ['LA LIMOUZINIERE',46.9761,-1.6083],['CORCOUE SUR LOGNE',46.9411,-1.5644],
+ ['SAINT PHILBERT DE GRAND LIEU',47.0342,-1.6417],['SAINT LUMINE DE COUTAIS',47.0069,-1.7192],
+ ['ROCHESERVIERE',46.9364,-1.5108],['LEGE',46.8858,-1.6019],['MACHECOUL',46.9925,-1.8231],
+ ['MONTAIGU',46.9758,-1.3103],['LES HERBIERS',46.8686,-1.0139],['CHOLET',47.0594,-0.8792],
+ ['ANCENIS',47.3667,-1.1772],['PORNIC',47.1122,-2.1],['SAINT NAZAIRE',47.2733,-2.2136],
+ ['CHALLANS',46.8447,-1.8778],['LA ROCHE SUR YON',46.6705,-1.426],['GUERANDE',47.3286,-2.4292]
+];
+
+
+/* ============ estimation des trajets ============ */
+const normTxt=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+function findCommune(txt){
+  const t=' '+normTxt(txt)+' ';
+  let best=null;
+  COMMUNES.forEach(c=>{
+    if(t.includes(' '+c[0]+' ')&&(!best||c[0].length>best[0].length))best=c;
+  });
+  return best;
+}
+function haversine(a,b){
+  const R=6371,r=Math.PI/180;
+  const dl=(b[1]-a[1])*r, dp=(b[2]-a[2])*r;
+  const x=Math.sin(dl/2)**2+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.sin(dp/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+/* renvoie {min, why} ou null */
+/* lien Google Maps : itinéraire pour un déplacement, simple repère à domicile */
+function mapsUrl(m){
+  const E=encodeURIComponent;
+  const dest=String(m.adresse||m.salle||'').trim();
+  if(!dest)return null;
+  if(m.lieu==='domicile')
+    return 'https://www.google.com/maps/search/?api=1&query='+E(dest);
+  const sa=salles().find(x=>x.nom===m.depart);
+  const orig=String((sa&&sa.adresse)||m.depart||'').trim();
+  if(!orig)return 'https://www.google.com/maps/search/?api=1&query='+E(dest);
+  return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin='+E(orig)+'&destination='+E(dest);
+}
+
+/* destTxt = l'adresse du match : c'est elle qui porte la commune d'arrivée */
+function estimTrajet(depart,destTxt,skipId){
+  const dk=normTxt(depart);
+  if(!normTxt(destTxt))return null;
+  const b=findCommune(destTxt);
+  if(!b)return null;
+  /* 1. un match précédent dans la même commune, depuis la même salle */
+  const prev=S.matches.find(m=>{
+    if(m.id===skipId||m.lieu!=='exterieur'||!(+m.trajet>0))return false;
+    if(normTxt(m.depart)!==dk)return false;
+    const pc=findCommune(m.adresse||'');
+    return pc&&pc[0]===b[0];
+  });
+  if(prev)return {min:+prev.trajet,why:'durée déjà utilisée pour '+(prev.adversaire||'un match précédent')};
+  /* 2. distance à vol d'oiseau entre communes connues */
+  const a=findCommune(depart);
+  if(!a)return null;
+  const km=haversine(a,b)*1.28;
+  if(km<1)return {min:10,why:'même commune'};
+  const v=48+Math.min(24,km/2.2);
+  const min=Math.max(10,Math.round(km/v*60/5)*5);
+  return {min,why:'≈ '+Math.round(km)+' km, '+cap(a[0])+' → '+cap(b[0])};
+}
+const cap=s=>String(s).toLowerCase().replace(/(^|[\s-])\w/g,c=>c.toUpperCase());
+
+
+/* ============ équité ============ */
+function counts(exclude){
+  const c={};
+  S.players.forEach(p=>c[p.id]={transport:0,bar:0,lavage:0,total:0,convocs:0,abs:0});
+  S.matches.forEach(m=>{
+    if(exclude&&m.id===exclude)return;
+    (m.convoques||[]).forEach(id=>{if(c[id])c[id].convocs++});
+    (m.absents||[]).forEach(id=>{if(c[id])c[id].abs++});
+    ['transport','bar','lavage'].forEach(t=>{
+      (m[t]||[]).forEach(id=>{if(c[id]){c[id][t]++;c[id].total++}});
+    });
+  });
+  return c;
+}
+function cycle(m){
+  const c=counts(m?m.id:null), act=eligible();
+  if(!act.length)return {tour:0,left:[],done:[],total:0};
+  const min=Math.min(...act.map(p=>c[p.id].lavage));
+  return {tour:min+1,total:act.length,
+    left:act.filter(p=>c[p.id].lavage===min).map(p=>p.id),
+    done:act.filter(p=>c[p.id].lavage>min).map(p=>p.id)};
+}
+function suggest(m,type,n){
+  const c=counts(m.id), abs=new Set(m.absents||[]);
+  const ok=new Set(eligible().map(p=>p.id).filter(id=>!abs.has(id)));
+  const cv=(m.convoques||[]).filter(id=>ok.has(id));
+  const conv=cv.length?cv:null, all=[...ok];
+  let pool;
+  if(type==='lavage'){
+    const cy=cycle(m), left=cy.left.filter(id=>!abs.has(id));
+    pool=conv?left.filter(id=>conv.includes(id)):left.slice();
+    if(!pool.length)pool=left.slice();
+    if(!pool.length)pool=conv||all;
+  }else pool=conv||all;
+  const busy=new Set([].concat(...['transport','bar','lavage'].filter(k=>k!==type).map(k=>m[k]||[])));
+  pool.sort((a,b)=>{
+    const A=c[a]||{},B=c[b]||{};
+    return (busy.has(a)-busy.has(b))||((A[type]||0)-(B[type]||0))||((A.total||0)-(B.total||0))
+      ||full(a).localeCompare(full(b),'fr');
+  });
+  return pool.slice(0,n);
+}
+/* ---- planification de plusieurs matchs d'un coup ---- */
+/* Le calcul tourne sur une copie de l'état : les compteurs d'équité s'accumulent
+   d'un match au suivant, exactement comme si on les attribuait un par un. */
+function planCompute(ids,tasks,mode,convoquer){
+  const backup=S, clone=JSON.parse(JSON.stringify(S));
+  const ordre=ids.slice().sort((a,b)=>{
+    const A=S.matches.find(x=>x.id===a)||{}, B=S.matches.find(x=>x.id===b)||{};
+    return ((A.date||'')+(A.heure||'')).localeCompare((B.date||'')+(B.heure||''));
+  });
+  S=clone;
+  try{
+    ordre.forEach(id=>{
+      const m=clone.matches.find(x=>x.id===id);
+      if(!m||estPasse(m))return;   /* un match passé n'est jamais recalculé */
+      if(convoquer&&!(m.convoques||[]).length)
+        m.convoques=clone.players.filter(p=>p.actif&&!(m.absents||[]).includes(p.id)).map(p=>p.id);
+      const dom=m.lieu==='domicile', jobs=[];
+      if(dom&&tasks.bar)jobs.push(['bar',2]);
+      if(!dom&&tasks.transport)jobs.push(['transport',nbTransport(m)]);
+      if(tasks.lavage)jobs.push(['lavage',1]);
+      jobs.forEach(([k,n])=>{
+        if(mode==='all')m[k]=[];
+        m[k]=m[k]||[];
+        if(m[k].length>=n)return;
+        const manque=n-m[k].length;
+        const add=suggest(m,k,n).filter(x=>!m[k].includes(x)).slice(0,manque);
+        m[k]=m[k].concat(add);
+      });
+    });
+  } finally { S=backup; }
+  return {clone,ordre};
+}
+
+
+/* ============ message ============ */
+/* m.msg, s'il existe, remplace le texte généré */
+const msgOf=m=>(m&&typeof m.msg==='string')?m.msg:buildMsg(m);
+function buildMsg(m){
+  const t=times(m), st=S.settings;
+  const list=(m.convoques||[]).map(id=>'· '+pre(id)).join('\n')||'—';
+  const nm=a=>(a&&a.length)?a.map(id=>pre(id)).join(' · '):'à définir';
+  return (m.lieu==='domicile'?st.tplDom:st.tplExt)
+    .replace(/{equipe}/g,st.equipe||'')
+    .replace(/{date}/g,frDate(m.date))
+    .replace(/{adversaire}/g,m.adversaire||'')
+    .replace(/{salle}/g,m.salle||(m.lieu==='domicile'?st.salleDef:''))
+    .replace(/{adresse}/g,m.adresse||'')
+    .replace(/{heure}/g,toHM(toMin(m.heure)))
+    .replace(/{rdv}/g,toHM(t.rdv))
+    .replace(/{arrivee}/g,toHM(t.arrivee))
+    .replace(/{depart}/g,m.depart||st.salleDef||'')
+    .replace(/{trajet}/g,m.trajet||0)
+    .replace(/{avant}/g,st.avant)
+    .replace(/{nb}/g,(m.convoques||[]).length)
+    .replace(/{joueurs}/g,list)
+    .replace(/{absents}/g,(m.absents||[]).length?(m.absents||[]).map(id=>pre(id)).join(' · '):'aucun')
+    .replace(/{nbabs}/g,(m.absents||[]).length)
+    .replace(/{transport}/g,nm(m.transport))
+    .replace(/{bar}/g,nm(m.bar))
+    .replace(/{lavage}/g,nm(m.lavage))
+    .replace(/{coachs}|{encadrement}/g,(m.staff||[]).length
+      ? (m.staff||[]).map(id=>ST(id)?coachName(id):'').filter(Boolean).join(' · ') : 'à définir')
+    .replace(/\n{3,}/g,'\n\n');
+}
+
+/* ============ composants d’interface ============ */
+/* Applique au modèle les lignes de salles saisies dans #s_salles : renommages et
+   suppressions sont répercutés sur les matchs concernés. Renvoie le nombre de
+   matchs déplacés, ou -1 si la saisie est refusée ou la confirmation annulée. */
+function applySalles(minUne){
+  const box=document.querySelector('#s_salles');
+  if(!box)return 0;
+  const rows=[...box.querySelectorAll('.salle')].map(r=>({
+    id:r.dataset.id, ancien:r.dataset.nom||'',
+    nom:r.querySelector('.s-nom').value.trim(),
+    adresse:r.querySelector('.s-adr').value.trim(),
+    def:r.querySelector('.s-def input').checked
+  })).filter(x=>x.nom);
+  if(minUne&&!rows.length){toast('Gardez au moins une salle : des matchs se jouent à domicile');return -1}
+  const vus=new Set();
+  for(const r of rows){
+    const k=r.nom.toLowerCase();
+    if(vus.has(k)){toast('Deux salles portent le même nom');return -1}
+    vus.add(k);
+  }
+  const defNom=rows.length?(rows.find(r=>r.def)||rows[0]).nom:'';
+  /* salles retirées : on prévient si des matchs les utilisent */
+  const gardees=new Set(rows.map(r=>r.id));
+  const retirees=salles().filter(x=>!gardees.has(x.id));
+  const touches=new Set();
+  retirees.forEach(x=>S.matches.forEach(m=>{if(m.salle===x.nom||m.depart===x.nom)touches.add(m.id)}));
+  if(touches.size&&!confirm(touches.size+' match'+(touches.size>1?'s utilisent':' utilise')+
+     ' une salle que vous supprimez.\n\n'+(defNom?'Les basculer sur '+defNom+' ?':'Les laisser sans salle ?')))return -1;
+  /* renommages, repérés par identifiant */
+  rows.forEach(r=>{
+    if(r.ancien&&r.ancien!==r.nom)S.matches.forEach(m=>{
+      if(m.salle===r.ancien)m.salle=r.nom;
+      if(m.depart===r.ancien)m.depart=r.nom;
+    });
+  });
+  retirees.forEach(x=>S.matches.forEach(m=>{
+    if(m.salle===x.nom)m.salle=defNom;
+    if(m.depart===x.nom)m.depart=defNom;
+  }));
+  S.settings.salles=rows.map(r=>({id:r.id,nom:r.nom,adresse:r.adresse}));
+  S.settings.salleDef=defNom;
+  /* l'adresse d'une salle suit sur les matchs à domicile qui s'y jouent */
+  rows.forEach(r=>S.matches.forEach(m=>{if(m.lieu==='domicile'&&m.salle===r.nom)m.adresse=r.adresse}));
+  return touches.size;
+}
+function sheet(title,html,onOpen,opts){
+  const ov=document.createElement('div');
+  ov.className='ov';
+  ov.innerHTML=`<div class="sheet"><div class="grab"></div>
+    <div class="sheet-h"><h2>${esc(title)}</h2>
+    <button class="btn sm ghost" data-x>${I('x',16)} Fermer</button></div>${html}</div>`;
+  ov.addEventListener('click',e=>{
+    if(e.target===ov||e.target.hasAttribute('data-x')||e.target.closest('[data-x]'))ov.remove();
+  });
+  ($||document.body).appendChild(ov);
+  /* garde le champ actif visible quand le clavier s'ouvre */
+  ov.addEventListener('focusin',e=>{
+    if(!e.target.matches('input,select,textarea'))return;
+    setTimeout(()=>{try{e.target.scrollIntoView({block:'center',behavior:'smooth'})}catch(_){}} ,260);
+  });
+  if(onOpen)onOpen(ov);
+  /* Réflexes de boîte de dialogue au clavier : la première zone de saisie prend
+     le focus, Ctrl+Entrée valide. Échap est géré globalement plus bas. */
+  if(!COARSE)setTimeout(()=>{
+    const f=ov.querySelector('.sheet input:not([type=file]):not([type=checkbox]):not([type=radio]):not([readonly]),.sheet textarea:not([readonly]),.sheet select');
+    if(f)try{f.focus()}catch(e){}
+  },40);
+  ov.addEventListener('keydown',e=>{
+    if(e.key!=='Enter'||!(e.ctrlKey||e.metaKey))return;
+    const b=ov.querySelector('.sheet .btn.wide')||ov.querySelector('.sheet .btn:not(.ghost)');
+    if(b){e.preventDefault();b.click()}
+  });
+  return ov;
+}
+/* Photographie de l'état, pour pouvoir revenir en arrière. */
+const snap=()=>JSON.stringify(S);
+
+function toast(t,ic,undoJson){
+  document.querySelectorAll('.toast').forEach(x=>x.remove());
+  const d=document.createElement('div');d.className='toast';
+  d.innerHTML=(ic?I(ic,17):'')+'<span>'+esc(t)+'</span>';
+  if(undoJson){
+    const b=document.createElement('button');
+    b.className='tundo';b.type='button';
+    b.innerHTML=I('undo',15)+' Annuler';
+    b.onclick=()=>{
+      let old;
+      try{old=JSON.parse(undoJson)}catch(e){return}
+      S=old;migrate();save();
+      d.remove();
+      if(view.match&&!S.matches.some(m=>m.id===view.match))view.match=null;
+      render();toast('Retour en arrière effectué','check');
+    };
+    d.appendChild(b);
+  }
+  ($||document.body).appendChild(d);
+  setTimeout(()=>d.remove(),undoJson?8000:2200);
+}
+/* ============ gabarits de saisie ============ */
+function cRow(kind,label,value){
+  return `<div class="crow">
+    <input class="lb" placeholder="${kind==='tel'?'Papa':'Maman'}" value="${esc(label||'')}">
+    <input class="vl" inputmode="${kind==='tel'?'tel':'email'}" placeholder="${kind==='tel'?'06 12 34 56 78':'adresse@mail.fr'}" value="${esc(value||'')}">
+  </div>`;
+}
+function salleUsage(nom){
+  let dom=0,dep=0;
+  S.matches.forEach(m=>{
+    if(m.lieu==='domicile'&&m.salle===nom)dom++;
+    else if(m.lieu==='exterieur'&&m.depart===nom)dep++;
+  });
+  return {dom,dep,total:dom+dep};
+}
+function sRow(sa){
+  sa=sa||{id:'',nom:'',adresse:''};
+  const u=sa.nom?salleUsage(sa.nom):{dom:0,dep:0,total:0};
+  const parts=[];
+  if(u.dom)parts.push(u.dom+' match'+(u.dom>1?'s':'')+' à domicile');
+  if(u.dep)parts.push(u.dep+' départ'+(u.dep>1?'s':''));
+  return `<div class="salle" data-id="${esc(sa.id||uid())}" data-nom="${esc(sa.nom||'')}">
+    <div class="s-top">
+      <input class="s-nom" placeholder="Nom de la salle" value="${esc(sa.nom||'')}">
+      <button class="btn ghost s-del" title="Retirer cette salle">${I('trash',16)}</button>
+    </div>
+    <input class="s-adr" placeholder="Adresse (facultatif)" value="${esc(sa.adresse||'')}">
+    <div class="s-bot">
+      <label class="s-def"><input type="radio" name="sdef" value="${esc(sa.nom||'')}"${S.settings.salleDef===sa.nom?' checked':''}> Salle par défaut</label>
+      <span class="tiny">${parts.length?esc(parts.join(' · ')):'jamais utilisée'}</span>
+    </div>
+  </div>`;
+}
+
+
+/* ============ fichiers ============ */
+let xp=null;
+function loadXLSX(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  if(xp)return xp;
+  xp=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>window.XLSX?res(window.XLSX):rej(new Error('x'));
+    s.onerror=()=>rej(new Error('cdn'));
+    document.head.appendChild(s);
+  });
+  return xp;
+}
+function splitLines(txt){
+  const lines=txt.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length)return [];
+  const sep=lines[0].includes('\t')?'\t':(lines[0].includes(';')?';':(lines[0].includes(',')?',':'\t'));
+  return lines.map(l=>l.split(sep).map(x=>x.trim().replace(/^"|"$/g,'')));
+}
+function fmtCell(v){
+  if(v==null)return '';
+  if(v instanceof Date){
+    const p=n=>String(n).padStart(2,'0');
+    if(v.getHours()||v.getMinutes())return p(v.getHours())+':'+p(v.getMinutes());
+    return p(v.getDate())+'/'+p(v.getMonth()+1)+'/'+v.getFullYear();
+  }
+  return String(v).trim();
+}
+/* lit un fichier et renvoie un tableau de lignes (tableaux de chaînes) */
+function readFile(file,prefer){
+  const n=(file.name||'').toLowerCase();
+  if(/\.(xlsx|xlsm|xls)$/.test(n)){
+    return loadXLSX().then(X=>new Promise((res,rej)=>{
+      const fr=new FileReader();
+      fr.onload=()=>{
+        try{
+          const wb=X.read(new Uint8Array(fr.result),{type:'array',cellDates:true});
+          const nm=wb.SheetNames.find(s=>s.toLowerCase().startsWith(prefer))||wb.SheetNames[0];
+          const aoa=X.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:false,dateNF:'dd/mm/yyyy'});
+          res(aoa.map(r=>(r||[]).map(fmtCell)).filter(r=>r.some(x=>x!=='')));
+        }catch(e){rej(e)}
+      };
+      fr.onerror=()=>rej(new Error('lecture'));
+      fr.readAsArrayBuffer(file);
+    }));
+  }
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>res(splitLines(String(fr.result)));
+    fr.onerror=()=>rej(new Error('lecture'));
+    fr.readAsText(file,'utf-8');
+  });
+}
+function dropZone(id,prefer,onRows){
+  const dz=document.getElementById(id);
+  if(!dz)return;
+  const inp=dz.querySelector('input[type=file]');
+  const handle=f=>{
+    if(!f)return;
+    dz.querySelector('.dzt').textContent='Lecture de '+f.name+'…';
+    readFile(f,prefer).then(rows=>{
+      dz.querySelector('.dzt').textContent=f.name+' — '+rows.length+' ligne(s) lues';
+      onRows(rows);
+    }).catch(e=>{
+      dz.querySelector('.dzt').textContent='Lecture impossible';
+      toast(e.message==='cdn'?'Fichier Excel illisible hors ligne, collez les lignes':'Fichier illisible');
+    });
+  };
+  dz.onclick=e=>{if(e.target!==inp)inp.click()};
+  inp.onchange=()=>handle(inp.files[0]);
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over')}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over')}));
+  dz.addEventListener('drop',e=>handle(e.dataTransfer.files[0]));
+}
+const dzHtml=(id,txt)=>`<div class="drop" id="${id}">
+  <div class="dz-ic">${I('up',28)}</div>
+  <b>${COARSE?'Choisissez votre fichier':'Déposez votre fichier ici'}</b>
+  <div class="tiny dzt">${txt}</div>
+  <input type="file" accept=".xlsx,.xlsm,.xls,.csv,.tsv,.txt" style="display:none">
+</div>`;
+
+/* ---- export agenda (.ics) ---- */
+function icsStamp(dateStr,minutes){
+  if(!dateStr||minutes==null)return null;
+  const d=new Date(dateStr+'T00:00:00');
+  if(isNaN(d))return null;
+  d.setMinutes(((minutes%1440)+1440)%1440);
+  if(minutes<0)d.setDate(d.getDate()-1);
+  const p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(d.getHours())+p(d.getMinutes())+'00';
+}
+function icsEsc(t){return String(t||'').replace(/\\/g,'\\\\').replace(/[,;]/g,c=>'\\'+c).replace(/\r?\n/g,'\\n')}
+function buildIcs(list){
+  const now=new Date(), p=n=>String(n).padStart(2,'0');
+  const stamp=now.getUTCFullYear()+p(now.getUTCMonth()+1)+p(now.getUTCDate())+'T'
+    +p(now.getUTCHours())+p(now.getUTCMinutes())+p(now.getUTCSeconds())+'Z';
+  const ev=[];
+  list.forEach(m=>{
+    const t=times(m), h=toMin(m.heure);
+    const deb=icsStamp(m.date,t.rdv!=null?t.rdv:h);
+    const fin=icsStamp(m.date,(h!=null?h:0)+100);
+    if(!deb||!fin)return;
+    const lieu=[m.salle,m.adresse].filter(Boolean).join(', ');
+    ev.push(['BEGIN:VEVENT','UID:'+m.id+'@equipe-basket','DTSTAMP:'+stamp,
+      'DTSTART:'+deb,'DTEND:'+fin,
+      'SUMMARY:'+icsEsc((S.settings.equipe||'Match')+' vs '+(m.adversaire||'?')+(m.lieu==='domicile'?' (domicile)':' (extérieur)')),
+      'LOCATION:'+icsEsc(lieu),
+      'DESCRIPTION:'+icsEsc(msgOf(m)),
+      'BEGIN:VALARM','TRIGGER:-PT60M','ACTION:DISPLAY','DESCRIPTION:'+icsEsc('Départ bientôt — '+(m.adversaire||'')),
+      'END:VALARM','END:VEVENT'].join('\r\n'));
+  });
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Gestion equipe basket//FR','CALSCALE:GREGORIAN',
+    'X-WR-CALNAME:'+icsEsc(S.settings.equipe||'Mon équipe')].concat(ev,['END:VCALENDAR']).join('\r\n');
+}
+function download(nom,contenu,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([contenu],{type:type||'text/plain;charset=utf-8'}));
+  a.download=nom;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+
+
+/* ============ rendu ============ */
+const aujourdhui=()=>new Date().toISOString().slice(0,10);
+/* Un match passé ne se modifie qu'à la main : aucune attribution automatique,
+   pour ne pas réécrire un historique sur lequel repose le calcul d'équité. */
+const estPasse=m=>!!m&&(m.date||'')<aujourdhui();
+
+/* nombre de voitures attendues pour un déplacement : 2 par défaut, réglable par match */
+const nbTransport=m=>Math.min(4,Math.max(1,+m.nbTransport||2));
+function isReady(m){
+  const a=m.lieu==='domicile'?(m.bar||[]).length>=2:(m.transport||[]).length>=nbTransport(m);
+  return a&&(m.lavage||[]).length>=1&&(m.convoques||[]).length>0;
+}
+function todo(){
+  const t=new Date().toISOString().slice(0,10);
+  return S.matches.filter(m=>(m.date||'')>=t&&!isReady(m)).length;
+}
+function render(){
+  if(S.settings.onboarding){onboardingView();return}
+  const y=window.scrollY, n=todo();
+  const tabs=[['matchs','Matchs','cal',n],['joueurs','Effectif','users',0],
+              ['recap','Récap','board',0],['equite','Équité','scale',0],['reglages','Réglages','gear',0]];
+  const titre={matchs:'Calendrier',joueurs:'Effectif',recap:'Qui fait quoi',
+               equite:'Équité',reglages:'Réglages'}[view.tab];
+  $.innerHTML=`
+  <header class="top">
+    <h1>${esc(titre)}</h1>
+    <div class="sub">${esc(S.settings.equipe||'Mon équipe')} · ${S.players.filter(p=>p.actif).length} joueurs${S.staff.length?' · '+S.staff.length+' coach'+(S.staff.length>1?'s':''):''}</div>
+  </header>
+  <nav class="tabbar" role="tablist">
+    ${tabs.map(t=>`<button class="tab" role="tab" aria-selected="${view.tab===t[0]}" onclick="BB.go('${t[0]}')">
+      ${I(t[2],21)}<span>${t[1]}</span>${t[3]?`<span class="bdg">${t[3]}</span>`:''}</button>`).join('')}
+  </nav>
+  <main class="wrap">${
+    view.tab==='matchs'?(view.match?matchDetail():matchList()):
+    view.tab==='joueurs'?playersView():
+    view.tab==='recap'?recapView():
+    view.tab==='equite'?equityView():settingsView()
+  }</main>`;
+  window.scrollTo(0,y);
+}
+function go(t){view.tab=t;view.match=null;render();window.scrollTo(0,0)}
+
+/* ---- premier démarrage ---- */
+/* Trois étapes, dans l'ordre où l'on constitue une équipe : l'effectif, le
+   calendrier, puis les salles. Chacune réutilise les écrans de saisie normaux
+   plutôt que d'en dupliquer. L'étape courante vit dans les réglages : fermer
+   l'onglet en cours de route ne la perd pas. */
+const obStep=()=>Math.min(3,Math.max(1,+S.settings.onboarding||1));
+function onboardingView(){
+  const st=obStep(), s=S.settings;
+  const nbJ=S.players.length, nbC=S.staff.length, nbM=S.matches.length;
+  const bar=[1,2,3].map(i=>`<i class="${i<st?'done':(i===st?'on':'')}"></i>`).join('');
+  const fait=t=>`<div class="ob-done">${I('check',17)}<span>${t}</span></div>`;
+
+  const corps={
+   1:`
+     <div class="ob-lbl">Étape 1 sur 3</div>
+     <h2>Votre équipe</h2>
+     <p class="lead">Nommez l'équipe, puis constituez l'effectif : joueur par joueur,
+       en important un fichier Excel, ou en repartant d'une sauvegarde de l'outil.</p>
+     <div class="card" style="margin-top:18px"><div class="card-b">
+       <label class="f"><span>Nom de l'équipe</span>
+         <input id="ob_eq" value="${esc(s.equipe||'')}" placeholder="U13 M"></label>
+       ${nbJ?fait(`<b>${nbJ} joueur${nbJ>1?'s':''}</b>${nbC?' et '+nbC+' coach'+(nbC>1?'s':''):''} dans l\u2019effectif.`):''}
+       <div class="row">
+         <button class="btn" style="flex:1" onclick="BB.editPlayer()">${I('plus')} Ajouter un joueur</button>
+         <button class="btn ghost" onclick="BB.importPlayers()">${I('up')} Importer</button>
+       </div>
+       <button class="btn ghost wide" style="margin-top:8px" onclick="BB.editStaff()">${I('board',17)} Ajouter un coach</button>
+       <button class="btn ghost wide" style="margin-top:8px" onclick="BB.restore()">${I('save',17)} Restaurer une sauvegarde</button>
+       <p class="tiny" style="margin-top:12px">Les familles des coachs peuvent être exemptées des roulements : rattachez le coach à son joueur au moment de le créer.</p>
+     </div></div>`,
+   2:`
+     <div class="ob-lbl">Étape 2 sur 3</div>
+     <h2>Les matchs</h2>
+     <p class="lead">Saisissez le calendrier de la saison. L'import Excel va plus vite
+       si vous avez reçu la liste des rencontres ; sinon ajoutez les matchs au fil de l'eau.</p>
+     <div class="card" style="margin-top:18px"><div class="card-b">
+       ${nbM?fait(`<b>${nbM} match${nbM>1?'s':''}</b> au calendrier.`):''}
+       <div class="row">
+         <button class="btn" style="flex:1" onclick="BB.editMatch()">${I('plus')} Ajouter un match</button>
+         <button class="btn ghost" onclick="BB.importMatches()">${I('up')} Importer</button>
+       </div>
+       <button class="btn ghost wide" style="margin-top:8px" onclick="BB.gabarit()">${I('file',17)} Télécharger le gabarit Excel</button>
+       <p class="tiny" style="margin-top:12px">La salle indiquée pour un match à domicile est enregistrée au passage : vous la retrouverez à l'étape suivante, où il ne restera qu'à compléter son adresse.</p>
+     </div></div>`,
+   3:`
+     <div class="ob-lbl">Étape 3 sur 3</div>
+     <h2>Vos salles</h2>
+     <p class="lead">Les salles où l'équipe reçoit, qui servent aussi de points de
+       départ aux covoiturages. L'adresse sert à estimer les temps de trajet.</p>
+     <div class="card" style="margin-top:18px"><div class="card-b">
+       <div class="f"><span>Salles à domicile</span>
+         <div id="s_salles">${salles().map(x=>sRow(x)).join('')}</div>
+         <button class="link" onclick="BB.addSalle()">${I('plus',16)} Ajouter une salle</button>
+         ${salles().length?'':'<p class="tiny" style="margin-top:8px">Aucune salle pour l\u2019instant. Si votre équipe joue toujours à l\u2019extérieur, passez cette étape.</p>'}
+       </div>
+       <label class="f"><span>Être sur place combien de minutes avant le match</span>
+         <input id="s_av" type="number" min="0" max="180" value="${esc(s.avant)}"></label>
+       <label class="check"><input type="checkbox" id="s_ex"${s.exemptStaff?' checked':''}> Exempter les familles des coachs des roulements</label>
+     </div></div>`
+  }[st];
+
+  $.innerHTML=`
+  <main class="wrap"><div class="ob">
+    <header class="top" style="padding:20px 0 16px">
+      <h1>Bienvenue</h1>
+      <div class="sub">Mise en route de l'outil, en trois étapes</div>
+    </header>
+    <div class="ob-steps">${bar}</div>
+    ${corps}
+    <div class="ob-nav">
+      ${st>1?`<button class="btn ghost back" onclick="BB.obBack()">${I('back',17)} Retour</button>`:''}
+      <button class="btn" onclick="BB.obNext()">${st<3?'Continuer':I('check',18)+' Terminer'}</button>
+    </div>
+    <p style="text-align:center;margin-top:12px">
+      <button class="link subtle" onclick="BB.obSkip()">Passer et aller à l'application</button></p>
+  </div></main>`;
+}
+
+/* ---- calendrier ---- */
+function matchRow(m,next){
+  const t=times(m), dom=m.lieu==='domicile';
+  const d1=dom?(m.bar||[]).length>=2:(m.transport||[]).length>=nbTransport(m);
+  const r=rel(m.date);
+  return `<button class="match${next?' is-next':''}" onclick="BB.open('${m.id}')">
+    <div class="mdate"><b>${dayNum(m.date)}</b><span>${dayName(m.date)}</span></div>
+    <div class="mbody">
+      <div class="l1"><span class="name">${esc(m.adversaire||'Adversaire ?')}</span>
+        <span class="pill ${dom?'dom':'ext'}">${dom?'Domicile':'Extérieur'}</span></div>
+      <div class="l2">${r?esc(r)+' · ':''}match ${toHM(toMin(m.heure))} · RDV ${toHM(t.rdv)} · ${esc(dom?(m.salle||''):('départ '+(m.depart||'')))}</div>
+      <div class="duty">
+        <i class="${(m.convoques||[]).length?'ok':''}">${I('users',14)}</i>
+        <i class="${d1?'ok':''}">${I(dom?'cup':'car',14)}</i>
+        <i class="${(m.lavage||[]).length?'ok':''}">${I('shirt',14)}</i>
+        ${next?'<span class="pill next" style="margin-left:5px">prochain</span>':''}
+      </div>
+    </div>
+  </button>`;
+}
+function heroCard(m){
+  const t=times(m), dom=m.lieu==='domicile', r=rel(m.date);
+  const d=new Date(m.date+'T12:00:00');
+  const quand=(isNaN(d)?'':d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));
+  const manque=[];
+  if(!(m.convoques||[]).length)manque.push('convocations');
+  if(dom?(m.bar||[]).length<2:(m.transport||[]).length<nbTransport(m))manque.push(dom?'bar':'transport');
+  if(!(m.lavage||[]).length)manque.push('maillots');
+  return `<div class="hero">
+    <div class="lbl">${r?esc(r):'prochain match'}</div>
+    <h2>${esc(m.adversaire||'Adversaire ?')} <span class="pill ${dom?'dom':'ext'}">${dom?'domicile':'extérieur'}</span></h2>
+    <div class="when">${esc(quand)} · ${esc(dom?(m.salle||''):(m.salle||m.adresse||''))}</div>
+    <div class="htimes">
+      <div class="hi"><span>${dom?'Rendez-vous':'Départ'}</span><b>${toHM(t.rdv)}</b></div>
+      ${dom?'':`<div><span>Arrivée</span><b>${toHM(t.arrivee)}</b></div>`}
+      <div><span>Match</span><b>${toHM(toMin(m.heure))}</b></div>
+    </div>
+    ${manque.length?`<div class="tiny" style="margin-top:12px">${I('ban',14)} Reste à faire : ${manque.join(', ')}.</div>`:
+      `<div class="tiny" style="margin-top:12px">${I('check',14)} Tout est attribué.</div>`}
+    <div class="hact">
+      <button class="btn" onclick="BB.open('${m.id}')">${I('cal',17)} Ouvrir</button>
+      <button class="btn ghost" onclick="BB.openThen('${m.id}','copyMsg')">${I('copy',17)} Copier</button>
+    </div>
+  </div>`;
+}
+function matchList(){
+  const ms=sortedMatches(), today=new Date().toISOString().slice(0,10);
+  const next=ms.filter(m=>(m.date||'')>=today), past=ms.filter(m=>(m.date||'')<today).reverse();
+  return `
+  ${next.length?heroCard(next[0]):''}
+  <div class="row" style="margin-bottom:12px">
+    <button class="btn" style="flex:1" onclick="BB.editMatch()">${I('plus')} Ajouter un match</button>
+    <button class="btn ghost" onclick="BB.importMatches()">${I('up')} Importer</button>
+  </div>
+  ${next.length>1?`<button class="btn ghost wide" style="margin-bottom:12px" onclick="BB.plan()">${I('wand')} Planifier plusieurs matchs</button>`:''}
+  <div class="card">
+    <div class="card-h"><h3>À venir</h3><span class="tiny">${next.length}</span></div>
+    ${next.map((m,i)=>matchRow(m,i===0)).join('')||
+      `<div class="empty">${I('cal',30)}<b>Aucun match à venir</b>Ajoutez un match ou importez le calendrier de la saison.</div>`}
+  </div>
+  ${past.length?`<details class="card past">
+    <summary>${I('clock')} Matchs passés <span class="tiny">${past.length}</span> <span class="chev">${I('chev')}</span></summary>
+    ${past.map(m=>matchRow(m,false)).join('')}
+  </details>`:''}`;
+}
+
+function matchDetail(){
+  const m=S.matches.find(x=>x.id===view.match);
+  if(!m){view.match=null;return matchList()}
+  const t=times(m), dom=m.lieu==='domicile', c=counts(m.id), cy=cycle(m);
+  const nbT=nbTransport(m), passe=estPasse(m);
+  const pool=S.players.filter(p=>p.actif);
+  const conv=pool.map(p=>{
+    const isC=(m.convoques||[]).includes(p.id), isA=(m.absents||[]).includes(p.id);
+    const et=isC?'c':(isA?'a':''), n=(c[p.id]||{}).convocs||0;
+    return `<button class="jchip" data-et="${et}" onclick="BB.cycleConv('${p.id}')"
+      title="${esc(full(p.id))} — ${n} convocation${n>1?'s':''}${isA?' · noté absent':''}">
+      <span class="jav">${isC?I('check',15):(isA?I('ban',15):esc(initials(p)))}</span>
+      <span class="jnm">${esc(pre(p.id))}</span>
+      <span class="jn">${n}</span>
+    </button>`;
+  }).join('');
+
+  const taskBlock=(key,label,icon,n,help,nbCtl)=>{
+    const cur=m[key]||[], lav=key==='lavage';
+    const cand=(m.convoques&&m.convoques.length)?m.convoques:pool.map(p=>p.id);
+    const chips=cand.map(id=>{
+      const ex=S.settings.exemptStaff&&isStaffFam(id);
+      const done=lav&&!ex&&cy.done.includes(id);
+      const tt=ex?'Famille d\u2019un coach, exemptée':(done?'A déjà lavé pendant ce tour':'');
+      return `<button class="chip${done||ex?' done':''}" data-on="${cur.includes(id)?1:0}"
+        onclick="BB.toggleTask('${key}','${id}',${n})" ${tt?'title="'+tt+'"':''}>${esc(pre(id))}<span class="n">${done?'✓':''}${(c[id]||{})[key]||0}</span></button>`;
+    }).join('');
+    let note='';
+    if(lav){
+      const rest=cy.left.filter(id=>!cur.includes(id)).length;
+      const hs=cur.filter(id=>cy.done.includes(id));
+      note=`<div class="tiny" style="margin-bottom:8px">Tour ${cy.tour} · ${cy.total-cy.left.length}/${cy.total} familles passées, ${rest} restante${rest>1?'s':''}.</div>`
+        +(hs.length?`<div class="warn" style="margin-top:0;margin-bottom:9px">${hs.map(id=>esc(pre(id))).join(', ')} a déjà lavé pendant ce tour.</div>`:'');
+    }
+    return `<div class="task">
+      <div class="th"><b>${I(icon)} ${label} <span class="tiny">${cur.length}/${n}</span></b>
+        ${passe?'':`<button class="btn sm ghost" onclick="BB.auto('${key}',${n})">${I('wand',16)} Proposer</button>`}</div>
+      <div class="tiny" style="margin-bottom:9px">${help}</div>
+      ${nbCtl?`<div class="nbsel">
+        <span class="tiny">Nombre de voitures</span>
+        <div class="seg mini">${[1,2,3,4].map(k=>`<button type="button" aria-pressed="${k===n}" onclick="BB.setNb('${key}',${k})">${k}</button>`).join('')}</div>
+      </div>`:''}${note}
+      <div class="chips">${chips}</div>
+    </div>`;
+  };
+
+  return `
+  <div class="cols">
+  <div class="colspan">
+  <button class="link" onclick="BB.go('matchs')">${I('back',18)} Calendrier</button>
+  <div class="card" style="margin-top:4px">
+    <div class="card-h">
+      <div style="min-width:0">
+        <h3>${esc(m.adversaire||'Adversaire ?')}</h3>
+        <div class="tiny" style="text-transform:capitalize">${esc(frDate(m.date))}${rel(m.date)?' · '+esc(rel(m.date)):''}</div>
+      </div>
+      <span class="pill ${dom?'dom':'ext'}">${dom?'Domicile':'Extérieur'}</span>
+    </div>
+    <div class="card-b">
+      <div class="clock">
+        ${dom?`
+          <div class="hi"><span>Rendez-vous</span><b>${toHM(t.rdv)}</b><i>${esc(m.salle||'')}</i></div>
+          <div><span>Coup d'envoi</span><b>${toHM(toMin(m.heure))}</b><i>${S.settings.avant} min après</i></div>`
+        :`
+          <div class="hi"><span>Départ</span><b>${toHM(t.rdv)}</b><i>${esc(m.depart||S.settings.salleDef)}</i></div>
+          <div><span>Arrivée</span><b>${toHM(t.arrivee)}</b><i>${m.trajet||0} min de route</i></div>
+          <div><span>Match</span><b>${toHM(toMin(m.heure))}</b><i>${esc(m.salle||'')}</i></div>`}
+      </div>
+      ${m.adresse?`<div class="tiny" style="margin-top:11px;display:flex;gap:6px;align-items:flex-start">${I('pin',15)} <span>${esc(m.adresse)}</span></div>`:''}
+      <div class="row" style="margin-top:13px">
+        ${mapsUrl(m)?`<button class="btn sm ghost" onclick="BB.maps('${m.id}')">${I('map',16)} ${dom?'Voir la salle':'Itinéraire'}</button>`:''}
+        <button class="btn sm ghost" onclick="BB.editMatch('${m.id}')">${I('edit',16)} Modifier</button>
+        <button class="btn sm danger" onclick="BB.delMatch('${m.id}')">${I('trash',16)} Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  </div>
+  <div class="col">
+  <div class="sec-title">${I('users',17)} Convocations</div>
+  <div class="card"><div class="card-b">
+    <div class="jhead">
+      <b>${(m.convoques||[]).length} convoqué${(m.convoques||[]).length>1?'s':''} sur ${pool.length}${(m.absents||[]).length?' · '+(m.absents||[]).length+' absent'+((m.absents||[]).length>1?'s':''):''}</b>
+      <span class="row" style="gap:14px">
+        <button class="link subtle" onclick="BB.allConv(1)">Tous</button>
+        <button class="link subtle" onclick="BB.allConv(0)">Aucun</button>
+      </span>
+    </div>
+    <div class="jgrid">${conv}</div>
+    ${(m.absents||[]).length?`<div class="absline">${I('ban',15)} Absents : ${(m.absents||[]).map(id=>esc(pre(id))).join(', ')}</div>`:''}
+    <div class="tiny" style="margin-top:11px">${TAP} pour faire défiler : non retenu → convoqué → absent. Le chiffre indique le nombre de convocations depuis le début de la saison. Un joueur noté absent n'est plus proposé pour les tours.</div>
+  </div></div>
+
+  <div class="sec-title">${I('board',17)} Coachs présents — ${(m.staff||[]).length}</div>
+  <div class="card"><div class="card-b">
+    ${S.staff.length?`<div class="chips">${S.staff.map(s=>`<button class="chip" data-on="${(m.staff||[]).includes(s.id)?1:0}"
+        onclick="BB.toggleStaff('${s.id}')">${esc(coachName(s.id))}</button>`).join('')}</div>`
+      :`<p class="muted">Aucun coach enregistré. <button class="link" onclick="BB.go('joueurs')">En ajouter un</button></p>`}
+  </div></div>
+
+  </div>
+  <div class="col">
+  <div class="sec-title">${I('scale',17)} Roulements</div>
+  ${passe?`<div class="warn" style="margin:0 0 12px;display:flex;gap:10px;align-items:flex-start">${I('clock',17)}
+    <span>Match passé. L'attribution automatique est désactivée pour ne pas réécrire l'historique sur lequel repose l'équité. Vous pouvez toujours corriger à la main.</span></div>`
+   :`<button class="btn ghost wide" style="margin-bottom:11px" onclick="BB.autoAll()">${I('wand',17)} Tout proposer selon l'équité</button>`}
+  ${dom?taskBlock('bar','Bar','cup',2,'2 familles par match à domicile.')
+       :taskBlock('transport','Transport','car',nbT,
+          nbT+' famille'+(nbT>1?'s':'')+' conductrice'+(nbT>1?'s':'')+' pour ce déplacement.'
+          +((m.convoques||[]).length?' '+(m.convoques||[]).length+' joueurs convoqués'+((m.staff||[]).length?' et '+(m.staff||[]).length+' coach'+((m.staff||[]).length>1?'s':''):'')+' à transporter.':''),
+          true)}
+  ${taskBlock('lavage','Lavage des maillots','shirt',1,'1 famille par match, à tour de rôle : chacune passe une fois avant qu\u2019une famille repasse.')}
+
+  </div>
+  <div class="colspan">
+  <div class="sec-title">${I('mail',17)} Convocation
+    ${m.msg!=null?'<span class="pill">texte modifié</span>':''}
+    <button class="link subtle" style="margin-left:auto;text-transform:none;letter-spacing:0" onclick="BB.editMsg()">${I('edit',15)} Modifier</button>
+  </div>
+  <div class="msg" onclick="BB.editMsg()" title="${COARSE?'Toucher':'Cliquer'} pour modifier">${esc(msgOf(m))}</div>
+  ${m.msg!=null?`<div class="warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span style="flex:1;min-width:160px">Ce texte a été écrit à la main : il ne suit plus les changements de convocation ou de tours.</span>
+    <button class="btn sm ghost" onclick="BB.resetMsg()">${I('undo',15)} Régénérer</button>
+  </div>`:''}
+  <div class="actionbar">
+    <button class="btn wide" onclick="BB.copyMsg()">${I('copy')} Copier la convocation</button>
+  </div>
+  </div></div>`;
+}
+
+/* ---- effectif ---- */
+function contactLines(p){
+  const out=[];
+  contacts(p.tels).forEach(t=>out.push(`<div class="ct"><b>${esc(t.label||'Tél')}</b><a href="tel:${esc(String(t.value).replace(/\s/g,''))}">${esc(t.value)}</a></div>`));
+  contacts(p.mails).forEach(t=>out.push(`<div class="ct"><b>${esc(t.label||'Mail')}</b><a href="mailto:${esc(t.value)}">${esc(t.value)}</a></div>`));
+  return out.length?`<div class="ctl">${out.join('')}</div>`:'<div class="tiny">Aucun contact enregistré</div>';
+}
+function playersView(){
+  const list=[...S.players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  const rows=list.map(p=>{
+    const open=view.expP===p.id, nb=contacts(p.tels).length+contacts(p.mails).length;
+    return `<button class="prow" onclick="BB.expP('${p.id}')">
+      <span class="avatar">${esc(initials(p))}</span>
+      <span class="grow">
+        <span class="name">${esc(p.prenom)} ${esc(p.nom)} ${(p.coach||staffOf(p.id).length)?'<span class="pill coach">coach</span>':''}${p.actif?'':'<span class="pill off">inactif</span>'}</span>
+        <span class="meta" style="display:block">${[p.annee,p.commune].filter(Boolean).map(esc).join(' · ')} · ${nb} contact${nb>1?'s':''}</span>
+      </span>
+      <span class="chev${open?' open':''}">${I('chev',18)}</span>
+    </button>
+    ${open?`<div class="panel">${contactLines(p)}
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm ghost" onclick="BB.editPlayer('${p.id}')">${I('edit',15)} Modifier</button>
+        ${p.licence?`<span class="tiny">${esc(p.licence)}</span>`:''}
+      </div></div>`:''}`;
+  }).join('');
+
+  const srows=S.staff.map(s=>{
+    const open=view.expC===s.id, nb=contacts(s.tels).length+contacts(s.mails).length;
+    return `<button class="prow" onclick="BB.expC('${s.id}')">
+      <span class="avatar c">${esc(((s.prenom||'')[0]||'')+((s.nom||'')[0]||''))}</span>
+      <span class="grow">
+        <span class="name">${esc(staffName(s.id))}</span>
+        <span class="meta" style="display:block">${[s.annee,s.commune].filter(Boolean).map(esc).join(' · ')||'coach'}${s.joueur?' · parent de '+esc(full(s.joueur)):''}</span>
+      </span>
+      <span class="chev${open?' open':''}">${I('chev',18)}</span>
+    </button>
+    ${open?`<div class="panel">${contactLines(s)}
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm ghost" onclick="BB.editStaff('${s.id}')">${I('edit',15)} Modifier</button>
+        ${s.licence?`<span class="tiny">${esc(s.licence)}</span>`:''}
+      </div></div>`:''}`;
+  }).join('');
+
+  return `
+  <div class="cols">
+  <div class="colspan">
+  <div class="row" style="margin-bottom:12px">
+    <button class="btn" style="flex:1" onclick="BB.editPlayer()">${I('plus')} Ajouter un joueur</button>
+    <button class="btn ghost" onclick="BB.importPlayers()">${I('up')} Importer</button>
+  </div>
+  <button class="btn ghost wide" style="margin-bottom:12px" onclick="BB.numeros()">${I('phone')} Récupérer les numéros pour le groupe WhatsApp</button>
+  </div>
+  <div class="col">
+  <div class="card">
+    <div class="card-h"><h3>Joueurs</h3><span class="tiny">${S.players.length}</span></div>
+    ${rows||`<div class="empty">${I('users',30)}<b>Effectif vide</b>Saisissez les joueurs ou importez votre liste.</div>`}
+  </div>
+  </div>
+  <div class="col">
+  <div class="sec-title">${I('board',17)} Coachs</div>
+  <div class="card">
+    <div class="card-h"><h3>Coachs de l'équipe</h3>
+      <button class="btn sm ghost" onclick="BB.editStaff()">${I('plus',15)} Ajouter</button></div>
+    ${srows||`<div class="empty">${I('board',30)}<b>Aucun coach</b>Ajoutez-les : ils apparaîtront dans les convocations.</div>`}
+  </div>
+  </div></div>`;
+}
+
+
+/* ---- récapitulatif : qui fait quoi, match par match ---- */
+function recapView(){
+  const ms=sortedMatches(), today=new Date().toISOString().slice(0,10);
+  if(!ms.length)return `<div class="card"><div class="empty">${I('board',30)}<b>Aucun match</b>Le tableau se remplira dès que vous aurez ajouté des matchs.</div></div>`;
+  const nm=(a,att)=>{
+    if(a===null)return '<span class="na">—</span>';
+    if(!a||!a.length)return '<span class="miss">à définir</span>';
+    return a.map(id=>esc(pre(id))).join(', ')+(att&&a.length<att?' <span class="miss">+'+(att-a.length)+'</span>':'');
+  };
+  const rows=ms.map(m=>{
+    const t=times(m), dom=m.lieu==='domicile', past=(m.date||'')<today;
+    const d=new Date(m.date+'T12:00:00');
+    return `<tr class="${past?'pastrow':''}">
+      <td class="mt">
+        <button class="lnk" onclick="BB.open('${m.id}')">${esc(m.adversaire||'Adversaire ?')}</button>
+        <span class="sub">${isNaN(d)?esc(m.date):d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})} · ${esc(dom?'domicile':'extérieur')}</span>
+      </td>
+      <td class="num">${toHM(t.rdv)}<span class="sub">match ${toHM(toMin(m.heure))}</span></td>
+      <td class="num">${(m.convoques||[]).length||'<span class="miss">0</span>'}${(m.absents||[]).length?`<span class="sub">${(m.absents||[]).length} abs.</span>`:''}</td>
+      <td>${nm(dom?null:m.transport,nbTransport(m))}</td>
+      <td>${nm(dom?m.bar:null,2)}</td>
+      <td>${nm(m.lavage,1)}</td>
+      <td>${(m.staff||[]).length?(m.staff||[]).map(id=>esc(coachName(id))).join(', '):'<span class="na">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  const c=counts(null);
+  const tot=k=>S.matches.reduce((n,m)=>n+((m[k]||[]).length),0);
+  return `
+  <div class="row" style="margin-bottom:12px">
+    <span class="tiny" style="flex:1">${ms.length} match${ms.length>1?'s':''} · ${tot('transport')} transports · ${tot('bar')} bars · ${tot('lavage')} lavages attribués</span>
+    <button class="btn ghost sm" onclick="BB.exportMatches()">${I('down',16)} Exporter</button>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="recap">
+        <thead><tr>
+          <th class="mt">Match</th><th>RDV</th><th>Joueurs</th>
+          <th>${I('car',14)} Transport</th><th>${I('cup',14)} Bar</th>
+          <th>${I('shirt',14)} Maillots</th><th>Coachs</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>
+  <p class="tiny" style="margin-top:10px"><span class="only-tactile">Faites glisser le tableau horizontalement. </span>${COARSE?'Touchez':'Cliquez sur'} un adversaire pour ouvrir sa fiche.</p>`;
+}
+
+/* ---- équité ---- */
+function equityView(){
+  const c=counts(null), all=S.players.filter(p=>p.actif);
+  const list=eligible().sort((a,b)=>(c[a.id].total-c[b.id].total)||a.nom.localeCompare(b.nom,'fr'));
+  const exempts=all.filter(p=>!list.includes(p));
+  const max=Math.max(1,...list.map(p=>c[p.id].total));
+  const tot=list.reduce((s,p)=>s+c[p.id].total,0);
+  const ecart=list.length?c[list[list.length-1].id].total-c[list[0].id].total:0;
+  const cy=cycle(null);
+
+  const kv=(cls,ic,v)=>`<span class="kv ${cls}${v?'':' z'}">${I(ic,14)}${v}</span>`;
+  const rows=list.map(p=>{
+    const k=c[p.id], w=x=>(x/max*100)+'%';
+    return `<div class="brow">
+      <span class="bname">${esc(p.prenom)} ${esc(p.nom)}<small>${k.convocs} convocation${k.convocs>1?'s':''}</small></span>
+      <span class="bnums">${kv('tr','car',k.transport)}${kv('ba','cup',k.bar)}${kv('la','shirt',k.lavage)}<b class="btot">${k.total}</b></span>
+      <span class="bars"><i class="b-tr" style="width:${w(k.transport)}"></i><i class="b-bar" style="width:${w(k.bar)}"></i><i class="b-lav" style="width:${w(k.lavage)}"></i></span>
+    </div>`;
+  }).join('');
+
+  const etat = !tot ? 'Aucun tour attribué pour l\u2019instant.'
+    : ecart===0 ? 'Répartition parfaitement équilibrée.'
+    : ecart===1 ? 'Répartition équilibrée, un tour d\u2019écart au maximum.'
+    : 'Écart de '+ecart+' tours entre la famille la plus et la moins sollicitée. Le bouton « Proposer » corrige de lui-même.';
+
+  return `
+  <div class="card"><div class="card-b">
+    <h3 style="font-size:15px">Répartition des tours</h3>
+    <div class="tiny" style="margin:3px 0 14px">${tot} tour${tot>1?'s':''} sur ${list.length} famille${list.length>1?'s':''} · ${esc(etat)}</div>
+    ${rows||'<div class="tiny">Aucun joueur dans les roulements.</div>'}
+    <div class="legend"><span><i class="b-tr"></i>Transport</span><span><i class="b-bar"></i>Bar</span><span><i class="b-lav"></i>Maillots</span></div>
+  </div></div>
+
+  ${cy.total?`<div class="card" style="margin-top:12px"><div class="card-b" style="display:flex;gap:12px;align-items:flex-start">
+    ${I('shirt',20)}<div><b style="font-size:14.5px">Maillots — tour ${cy.tour}</b>
+    <div class="tiny" style="margin-top:3px">${cy.total-cy.left.length} famille${cy.total-cy.left.length>1?'s':''} sur ${cy.total} ${cy.total-cy.left.length>1?'sont passées':'est passée'}${cy.left.length?'. Il reste : '+cy.left.map(id=>esc(pre(id))).join(', '):'. Tour complet, un nouveau démarre au prochain match.'}</div></div>
+  </div></div>`:''}
+
+  ${exempts.length?`<div class="card" style="margin-top:12px"><div class="card-b" style="display:flex;gap:12px;align-items:flex-start">
+    ${I('board',20)}<div><b style="font-size:14.5px">Hors roulement</b>
+    <div class="tiny" style="margin-top:3px">${exempts.map(p=>esc(p.prenom+' '+p.nom)).join(', ')} — famille d${exempts.length>1?'e coachs':'\u2019un coach'}. Modifiable dans Réglages.</div></div>
+  </div></div>`:''}`;
+}
+
+/* ---- réglages ---- */
+function settingsView(){
+  const s=S.settings;
+  return `
+  <div class="cols">
+  <div class="col">
+  <div class="card"><div class="card-h"><h3>L'équipe</h3></div><div class="card-b">
+    <label class="f"><span>Nom de l'équipe</span><input id="s_eq" value="${esc(s.equipe)}"></label>
+    <div class="f"><span>Salles à domicile</span>
+      <div id="s_salles">${salles().map(x=>sRow(x)).join('')}</div>
+      <button class="link" onclick="BB.addSalle()">${I('plus',16)} Ajouter une salle</button>
+      <p class="tiny" style="margin-top:8px">La salle par défaut est présélectionnée pour les matchs à domicile et sert de point de départ des covoiturages. Renommer une salle met à jour les matchs concernés.</p>
+    </div>
+    <label class="f"><span>Être sur place combien de minutes avant le match</span>
+      <input id="s_av" type="number" min="0" max="180" value="${s.avant}"></label>
+    <label class="check" style="margin-bottom:14px"><input type="checkbox" id="s_ex"${s.exemptStaff?' checked':''}> Exempter les familles des coachs des roulements</label>
+    <button class="btn wide" onclick="BB.saveSettings()">${I('check',18)} Enregistrer</button>
+  </div></div>
+
+  <div class="card"><div class="card-h"><h3>Import et export</h3></div><div class="card-b">
+    <p class="muted" style="margin-bottom:12px">Le gabarit Excel contient deux onglets, Joueurs et Matchs, avec les bonnes colonnes.</p>
+    <button class="btn ghost wide" style="margin-bottom:8px" onclick="BB.gabarit()">${I('file')} Télécharger le gabarit Excel</button>
+    <div class="row">
+      <button class="btn ghost" style="flex:1" onclick="BB.exportPlayers()">${I('down',17)} Joueurs</button>
+      <button class="btn ghost" style="flex:1" onclick="BB.exportMatches()">${I('down',17)} Matchs</button>
+    </div>
+    <button class="btn ghost wide" style="margin-top:8px" onclick="BB.ics()">${I('ics')} Calendrier pour mon agenda (.ics)</button>
+    <button class="btn ghost wide" style="margin-top:8px" onclick="BB.exportJson()">${I('save')} Sauvegarde complète (JSON)</button>
+    <button class="btn ghost wide" style="margin-top:8px" onclick="BB.restore()">${I('up')} Restaurer une sauvegarde</button>
+  </div></div>
+
+  </div>
+  <div class="col">
+  <div class="card"><div class="card-h"><h3>Modèles de message</h3></div><div class="card-b">
+    <p class="tiny" style="margin-bottom:11px">Variables : {equipe} {date} {heure} {adversaire} {salle} {adresse} {rdv} {arrivee} {depart} {trajet} {avant} {nb} {joueurs} {absents} {nbabs} {coachs} {transport} {bar} {lavage}</p>
+    <label class="f"><span>Match à domicile</span><textarea id="s_td">${esc(s.tplDom)}</textarea></label>
+    <label class="f"><span>Match à l'extérieur</span><textarea id="s_te">${esc(s.tplExt)}</textarea></label>
+    <div class="row">
+      <button class="btn" onclick="BB.saveTpl()">${I('check',17)} Enregistrer</button>
+      <button class="btn ghost" onclick="BB.resetTpl()">Modèles d'origine</button>
+    </div>
+  </div></div>
+
+  <div class="card"><div class="card-b">
+    <button class="btn ghost wide" style="margin-bottom:8px" onclick="BB.guide()">${I('wand',17)} Revoir le guide de démarrage</button>
+    <button class="btn danger wide" onclick="BB.wipe()">${I('trash',17)} Tout effacer</button>
+  </div></div>
+  </div></div>`;
+}
+
+
+/* ============ actions ============ */
+const BB={
+ go,
+
+ /* -- premier démarrage -- */
+ obNext(){
+   const st=obStep(), eq=document.querySelector('#ob_eq');
+   if(eq)S.settings.equipe=eq.value.trim();
+   if(st<3){S.settings.onboarding=st+1;save();render();window.scrollTo(0,0);return}
+   if(applySalles(false)<0)return;
+   const av=document.querySelector('#s_av'), ex=document.querySelector('#s_ex');
+   if(av)S.settings.avant=+av.value||45;
+   if(ex)S.settings.exemptStaff=ex.checked;
+   BB.obSkip('Tout est prêt');
+ },
+ obBack(){
+   const st=obStep();
+   if(st<=1)return;
+   if(st===3&&applySalles(false)<0)return;
+   S.settings.onboarding=st-1;save();render();window.scrollTo(0,0);
+ },
+ obSkip(msg){
+   const eq=document.querySelector('#ob_eq');
+   if(eq)S.settings.equipe=eq.value.trim();
+   S.settings.onboarding=0;save();
+   view={tab:S.matches.length?'matchs':'joueurs',match:null,expP:null,expC:null};
+   render();window.scrollTo(0,0);
+   if(typeof msg==='string')toast(msg,'check');
+ },
+ /* Revoir le guide sans rien effacer, les données sont conservées. */
+ guide(){S.settings.onboarding=1;save();render();window.scrollTo(0,0)},
+ open(id){view.tab='matchs';view.match=id;render();window.scrollTo(0,0)},
+ expP(id){view.expP=view.expP===id?null:id;render()},
+ expC(id){view.expC=view.expC===id?null:id;render()},
+
+ /* non retenu → convoqué → absent → non retenu */
+ cycleConv(pid){
+   const m=S.matches.find(x=>x.id===view.match);
+   m.convoques=m.convoques||[];m.absents=m.absents||[];
+   const isC=m.convoques.includes(pid), isA=m.absents.includes(pid);
+   m.convoques=m.convoques.filter(x=>x!==pid);
+   m.absents=m.absents.filter(x=>x!==pid);
+   if(!isC&&!isA)m.convoques.push(pid);
+   else if(isC){
+     m.absents.push(pid);
+     ['transport','bar','lavage'].forEach(k=>{m[k]=(m[k]||[]).filter(x=>x!==pid)});
+   }else{
+     ['transport','bar','lavage'].forEach(k=>{m[k]=(m[k]||[]).filter(x=>x!==pid)});
+   }
+   save();render();
+ },
+ allConv(on){
+   const av=snap();
+   const m=S.matches.find(x=>x.id===view.match);
+   const abs=new Set(m.absents||[]);
+   m.convoques=on?S.players.filter(p=>p.actif&&!abs.has(p.id)).map(p=>p.id):[];
+   if(!on)['transport','bar','lavage'].forEach(k=>m[k]=[]);
+   save();render();
+   if(!on)toast('Convocations et tours retirés','ban',av);
+ },
+ toggleTask(key,pid,n){
+   const m=S.matches.find(x=>x.id===view.match);
+   m[key]=m[key]||[];
+   const i=m[key].indexOf(pid);
+   if(i>=0)m[key].splice(i,1);
+   else{m[key].push(pid);if(m[key].length>n)m[key].shift()}
+   save();render();
+ },
+ toggleStaff(sid){
+   const m=S.matches.find(x=>x.id===view.match);
+   m.staff=m.staff||[];
+   const i=m.staff.indexOf(sid);
+   if(i<0)m.staff.push(sid);else m.staff.splice(i,1);
+   save();render();
+ },
+ setNb(key,n){
+   const m=S.matches.find(x=>x.id===view.match);
+   m.nbTransport=n;
+   if((m[key]||[]).length>n)m[key]=m[key].slice(-n);
+   save();render();
+ },
+ auto(key,n){
+   const m0=S.matches.find(x=>x.id===view.match);
+   if(estPasse(m0)){toast('Match passé : à modifier à la main','ban');return}
+   const av=snap();
+   const m=m0;
+   m[key]=suggest(m,key,n);save();render();
+   toast('Proposé selon l\u2019équité','wand',av);
+ },
+ autoAll(){
+   const m0=S.matches.find(x=>x.id===view.match);
+   if(estPasse(m0)){toast('Match passé : à modifier à la main','ban');return}
+   const av=snap();
+   const m=m0;
+   if(m.lieu==='domicile'){m.bar=[];m.lavage=[];m.bar=suggest(m,'bar',2)}
+   else{m.transport=[];m.lavage=[];m.transport=suggest(m,'transport',nbTransport(m))}
+   m.lavage=suggest(m,'lavage',1);
+   save();render();toast('Tours proposés','wand',av);
+ },
+ copyMsg(){
+   const m=S.matches.find(x=>x.id===view.match);
+   const ta=document.createElement('textarea');ta.value=msgOf(m);
+   ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);
+   ta.select();try{document.execCommand('copy')}catch(e){}
+   ta.remove();toast('Convocation copiée','check');
+ },
+ /* -- numéros de téléphone -- */
+ numeros(){
+   const st={portables:true,coachs:true,intl:false,sep:', '};
+   const ov=sheet('Numéros pour le groupe WhatsApp',`<div id="nu"></div>`,()=>{},{noGuard:true});
+   const box=ov.querySelector('#nu');
+
+   const estPortable=v=>/^0\s*[67]/.test(String(v))||/^\+?33\s*[67]/.test(String(v));
+   const inter=v=>{
+     const d=String(v).replace(/[^\d+]/g,'');
+     if(d.startsWith('+'))return d;
+     if(d.startsWith('33'))return '+'+d;
+     if(d.startsWith('0'))return '+33'+d.slice(1);
+     return d;
+   };
+   function liste(){
+     const out=[];
+     const prendre=(src,qui)=>contacts(src).forEach(t=>{
+       if(st.portables&&!estPortable(t.value))return;
+       out.push({num:st.intl?inter(t.value):String(t.value).replace(/[\s.\-()]/g,''),
+                 qui:qui+(t.label?' · '+t.label:'')});
+     });
+     S.players.filter(p=>p.actif).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'))
+       .forEach(p=>prendre(p.tels,p.prenom+' '+p.nom));
+     if(st.coachs)S.staff.forEach(c=>prendre(c.tels,(c.prenom+' '+c.nom).trim()+' (coach)'));
+     const vus=new Set(), uniq=[];
+     out.forEach(o=>{const k=o.num.replace(/\D/g,'');if(k&&!vus.has(k)){vus.add(k);uniq.push(o)}});
+     return uniq;
+   }
+   function draw(){
+     const l=liste(), txt=l.map(o=>o.num).join(st.sep);
+     box.innerHTML=`
+     <div class="card"><div class="card-b">
+       <p class="tiny" style="margin-bottom:14px">Copiez cette liste, puis collez-la dans le champ des participants au moment de créer le groupe. Les doublons sont retirés.</p>
+       <label class="check"><input type="checkbox" data-o="portables"${st.portables?' checked':''}> Portables uniquement (06 et 07)</label>
+       <label class="check"><input type="checkbox" data-o="coachs"${st.coachs?' checked':''}> Inclure les coachs</label>
+       <label class="check" style="margin-bottom:14px"><input type="checkbox" data-o="intl"${st.intl?' checked':''}> Format international (+33)</label>
+       <div class="f"><span>Séparateur</span>
+         <div class="seg mini" style="width:100%">
+           <button type="button" data-s=", " aria-pressed="${st.sep===', '}">virgule</button>
+           <button type="button" data-s=" ; " aria-pressed="${st.sep===' ; '}">point-virgule</button>
+           <button type="button" data-s="\n" aria-pressed="${st.sep==='\n'}">une par ligne</button>
+         </div>
+       </div>
+       <label class="f"><span>${l.length} numéro${l.length>1?'s':''}</span>
+         <textarea id="nu_t" readonly style="min-height:150px;font-family:ui-monospace,Menlo,monospace">${esc(txt)}</textarea></label>
+       <button class="btn wide" data-c="1"${l.length?'':' disabled'}>${I('copy',18)} Copier les ${l.length} numéros</button>
+     </div></div>
+     <div class="sec-title">${I('users',17)} Détail</div>
+     <div class="card">${l.length?l.map(o=>`<div class="prow" style="min-height:52px">
+         <span class="grow"><span class="name" style="font-size:14px">${esc(o.qui)}</span></span>
+         <span class="tiny" style="font-variant-numeric:tabular-nums">${esc(o.num)}</span>
+       </div>`).join(''):'<div class="empty">Aucun numéro ne correspond à ces critères.</div>'}</div>`;
+
+     box.querySelectorAll('[data-o]').forEach(c=>c.onchange=()=>{st[c.dataset.o]=c.checked;draw()});
+     box.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{st.sep=b.dataset.s;draw()});
+     const cp=box.querySelector('[data-c]');
+     if(cp)cp.onclick=()=>{
+       const ta=box.querySelector('#nu_t');
+       ta.removeAttribute('readonly');ta.select();
+       try{document.execCommand('copy')}catch(e){}
+       ta.setAttribute('readonly','');
+       toast(l.length+' numéros copiés','check');
+     };
+   }
+   draw();
+ },
+
+ /* -- convocation -- */
+ editMsg(){
+   const m=S.matches.find(x=>x.id===view.match);
+   const perso=m.msg!=null;
+   sheet('Modifier la convocation',`
+     <div class="card"><div class="card-b">
+       <p class="tiny" style="margin-bottom:12px">Ce texte ne concerne que ce match. Pour changer la présentation de toutes vos convocations, modifiez plutôt les modèles dans Réglages.</p>
+       <label class="f"><textarea id="mg_t" style="min-height:320px">${esc(msgOf(m))}</textarea></label>
+       <button class="btn wide" id="mg_ok">${I('check',18)} Enregistrer</button>
+       ${perso?`<button class="btn ghost wide" style="margin-top:8px" id="mg_rz">${I('undo',17)} Revenir au texte automatique</button>`:''}
+     </div></div>`,ov=>{
+       ov.querySelector('#mg_ok').onclick=()=>{
+         const v=ov.querySelector('#mg_t').value;
+         m.msg=(v.trim()===buildMsg(m).trim())?undefined:v;
+         if(m.msg===undefined)delete m.msg;
+         save();ov.remove();render();
+         toast(m.msg!=null?'Texte enregistré':'Texte identique au modèle','check');
+       };
+       const r=ov.querySelector('#mg_rz');
+       if(r)r.onclick=()=>{delete m.msg;save();ov.remove();render();toast('Texte régénéré','check')};
+     });
+ },
+ resetMsg(){
+   const m=S.matches.find(x=>x.id===view.match);
+   if(!confirm('Régénérer le texte à partir du modèle ? Vos modifications seront perdues.'))return;
+   const av=snap();
+   delete m.msg;save();render();toast('Texte régénéré','check',av);
+ },
+ openThen(id,act){
+   view.tab='matchs';view.match=id;render();window.scrollTo(0,0);
+   if(BB[act])BB[act]();
+ },
+ ics(id){
+   const list=id?[S.matches.find(x=>x.id===id)]:sortedMatches();
+   if(!list.length||!list[0]){toast('Aucun match');return}
+   const txt=buildIcs(list);
+   if(!txt.includes('BEGIN:VEVENT')){toast('Date ou heure manquante');return}
+   try{
+     download(id?'match-'+(list[0].date||'')+'.ics':'calendrier-'+(S.settings.equipe||'equipe').replace(/\W+/g,'-')+'.ics',
+              txt,'text/calendar;charset=utf-8');
+     toast(id?'Événement téléchargé':'Calendrier téléchargé','check');
+   }catch(e){toast('Téléchargement impossible')}
+ },
+ /* -- matchs -- */
+ editMatch(id){
+   const def=S.settings.salleDef;
+   const m=id?S.matches.find(x=>x.id===id)
+             :{date:'',heure:'',adversaire:'',lieu:'domicile',salle:def,adresse:salleAdr(def),depart:def,trajet:''};
+   const dom=m.lieu==='domicile';
+   sheet(id?'Modifier le match':'Nouveau match',`
+     <div class="card"><div class="card-b">
+       <div class="grid2">
+         <label class="f"><span>Date</span><input id="m_d" type="date" value="${esc(m.date)}"></label>
+         <label class="f"><span>Heure du match</span><input id="m_h" type="time" step="300" value="${esc(normHeure(m.heure))}"></label>
+       </div>
+       <label class="f"><span>Adversaire</span><input id="m_a" value="${esc(m.adversaire)}" placeholder="BC Vertou"></label>
+       <div class="f"><span>Lieu</span>
+         <div class="seg lieu" id="m_seg">
+           <button type="button" data-v="domicile" aria-pressed="${dom}">${I('home',17)} À domicile</button>
+           <button type="button" data-v="exterieur" aria-pressed="${!dom}">${I('car',17)} À l'extérieur</button>
+         </div>
+       </div>
+       <div id="m_bdom" style="${dom?'':'display:none'}">
+         <label class="f"><span>Salle qui reçoit</span>${salleField('m_ss',dom?m.salle:def,'Nom de votre salle')}</label>
+       </div>
+       <div id="m_bext" style="${dom?'display:none':''}">
+         <label class="f"><span>Adresse du match — sert au calcul du trajet</span>
+           <input id="m_ad" value="${esc(dom?'':(m.adresse||''))}" placeholder="Rue du Loiry, 44120 Vertou"></label>
+         <label class="f"><span>Salle de l'adversaire</span><input id="m_s" value="${esc(dom?'':(m.salle||''))}" placeholder="Salle du Loiry"></label>
+         <label class="f"><span>Départ groupé depuis</span>${salleField('m_dp',m.depart||def,'Nom de votre salle')}</label>
+         <div id="m_hint"></div>
+         <label class="f" style="margin-bottom:4px"><span>Trajet aller (min)</span>
+           <input id="m_t" type="number" min="0" step="5" value="${m.trajet||''}" placeholder="—"></label>
+         <div class="row" style="gap:16px;margin-bottom:14px">
+           <button class="link subtle" id="m_est">${I('refresh',15)} Recalculer</button>
+           <button class="link subtle" id="m_map">${I('map',15)} Google Maps</button>
+         </div>
+       </div>
+       <button class="btn wide" id="m_ok">${id?'Enregistrer':'Ajouter le match'}</button>
+     </div></div>`,ov=>{
+       const q=s=>ov.querySelector(s);
+       const lieuVal=()=>q('#m_seg button[aria-pressed="true"]').dataset.v;
+       q('#m_seg').querySelectorAll('button').forEach(b=>{
+         b.onclick=()=>{
+           q('#m_seg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+           const d=b.dataset.v==='domicile';
+           q('#m_bdom').style.display=d?'':'none';
+           q('#m_bext').style.display=d?'none':'';
+           if(!d)propose(false);
+         };
+       });
+       let depTouched=!!id;   /* sur un match existant, on respecte le départ enregistré */
+       function propose(force){
+         const dest=q('#m_ad').value.trim();
+         if(!dest){
+           q('#m_hint').innerHTML=force?'<div class="warn">Renseignez l\u2019adresse du match pour estimer le trajet.</div>':'';
+           return;
+         }
+         /* on estime le trajet depuis chacune des salles à domicile ; sans salle
+            enregistrée, depuis le point de départ tapé à la main */
+         const src=salles().length?salles().map(x=>x.nom):[q('#m_dp').value.trim()].filter(Boolean);
+         const opts=src.map(nom=>({nom:nom,e:estimTrajet(nom,dest,id)}))
+                       .filter(o=>o.e).sort((a,b)=>a.e.min-b.e.min);
+         if(!opts.length){
+           q('#m_hint').innerHTML=force?'<div class="warn">Commune non reconnue dans l\u2019adresse, saisissez la durée du trajet à la main.</div>':'';
+           return;
+         }
+         const best=opts[0];
+         if((force||!depTouched)&&q('#m_dp').value!==best.nom)q('#m_dp').value=best.nom;
+         const cur=opts.find(o=>o.nom===q('#m_dp').value)||best;
+         if(force||!q('#m_t').value)q('#m_t').value=cur.e.min;
+         const h=toMin(q('#m_h').value), av=+S.settings.avant||45;
+         const dep=h==null?null:h-av-cur.e.min;
+         const others=opts.filter(o=>o.nom!==cur.nom);
+         const meilleur=cur.nom===best.nom;
+         q('#m_hint').innerHTML=`
+           <div class="hintbox${meilleur?'':' alt'}">
+             ${I('route',17)}
+             <div style="flex:1;min-width:0">
+               <b>${meilleur?'Départ conseillé':'Trajet depuis'} : ${esc(cur.nom)} — ${cur.e.min} min</b>
+               <div class="sub">${esc(cur.e.why)}${dep!=null?' · départ à '+toHM(dep)+' pour être sur place '+av+' min avant':''}</div>
+               ${others.length?`<div class="sub alts">${others.map(o=>esc(o.nom)+' '+o.e.min+' min').join(' · ')}</div>`:''}
+               ${meilleur?'':`<button class="btn sm ghost" id="m_use" style="margin-top:9px">${I('check',15)} Partir plutôt de ${esc(best.nom)} (${best.e.min} min)</button>`}
+             </div>
+           </div>`;
+         const u=q('#m_use');
+         if(u)u.onclick=e2=>{e2.preventDefault();q('#m_dp').value=best.nom;depTouched=true;propose(true)};
+       }
+       q('#m_est').onclick=e=>{e.preventDefault();propose(true)};
+       q('#m_map').onclick=e=>{
+         e.preventDefault();
+         const u=mapsUrl({lieu:lieuVal(),adresse:q('#m_ad').value.trim(),
+                          salle:q('#m_s').value.trim(),depart:q('#m_dp').value});
+         if(!u){toast('Renseignez l\u2019adresse du match');return}
+         window.open(u,'_blank');
+       };
+       q('#m_ad').addEventListener('change',()=>propose(false));
+       q('#m_dp').addEventListener('change',()=>{depTouched=true;propose(true)});
+       q('#m_h').addEventListener('change',()=>{if(lieuVal()!=='domicile')propose(false)});
+       if(!dom)propose(false);
+       q('#m_ok').onclick=()=>{
+         const g=s=>q(s).value.trim(), d=lieuVal()==='domicile';
+         if(!g('#m_d')||!g('#m_h')){toast('Date et heure obligatoires');return}
+         /* une salle saisie librement rejoint les réglages */
+         const sd=registerSalle(d?g('#m_ss'):g('#m_dp'));
+         const o=d?{date:g('#m_d'),heure:normHeure(g('#m_h')),adversaire:g('#m_a'),lieu:'domicile',
+                    salle:sd,adresse:salleAdr(sd),depart:sd,trajet:0}
+                 :{date:g('#m_d'),heure:normHeure(g('#m_h')),adversaire:g('#m_a'),lieu:'exterieur',
+                    salle:g('#m_s'),adresse:g('#m_ad'),depart:sd,trajet:+g('#m_t')||0};
+         if(id)Object.assign(S.matches.find(x=>x.id===id),o);
+         else{
+           const nm=Object.assign({id:uid(),convoques:[],transport:[],bar:[],lavage:[],staff:S.staff.map(x=>x.id)},o);
+           S.matches.push(nm);
+           /* on ouvre directement la fiche du match créé */
+           view.tab='matchs';view.match=nm.id;
+         }
+         save();ov.remove();render();
+         if(!id){window.scrollTo(0,0);toast('Match créé, à vous les convocations','check')}
+       };
+     });
+ },
+ maps(id){
+   const u=mapsUrl(S.matches.find(x=>x.id===id));
+   if(!u){toast('Aucune adresse renseignée');return}
+   window.open(u,'_blank');
+ },
+ delMatch(id){
+   const m=S.matches.find(x=>x.id===id);
+   if(!confirm('Supprimer le match contre '+((m&&m.adversaire)||'?')+' ?'))return;
+   const av=snap();
+   S.matches=S.matches.filter(x=>x.id!==id);view.match=null;save();render();
+   toast('Match supprimé','trash',av);
+ },
+
+ /* -- joueurs -- */
+ editPlayer(id){
+   const p=id?P(id):{nom:'',prenom:'',licence:'',annee:'',sexe:'M',commune:'',mails:[],tels:[],coach:false,actif:true};
+   sheet(id?p.prenom+' '+p.nom:'Nouveau joueur',`
+     <div class="card"><div class="card-b">
+       <div class="grid2">
+         <label class="f"><span>Nom</span><input id="p_n" value="${esc(p.nom)}"></label>
+         <label class="f"><span>Prénom</span><input id="p_p" value="${esc(p.prenom)}"></label>
+         <label class="f"><span>Licence</span><input id="p_l" value="${esc(p.licence)}"></label>
+         <label class="f"><span>Année de naissance</span><input id="p_a" inputmode="numeric" value="${esc(p.annee)}"></label>
+         <label class="f"><span>Sexe</span><input id="p_s" value="${esc(p.sexe)}"></label>
+         <label class="f"><span>Commune</span><input id="p_c" value="${esc(p.commune)}"></label>
+       </div>
+       <div class="f"><span>Téléphones — précisez à qui appartient chaque numéro</span>
+         <div id="p_tels">${(contacts(p.tels).length?contacts(p.tels):[{label:'',value:''}]).map(t=>cRow('tel',t.label,t.value)).join('')}</div>
+         <button class="link" id="p_addt">${I('plus',16)} Ajouter un numéro</button></div>
+       <div class="f"><span>Mails — précisez à qui appartient chaque adresse</span>
+         <div id="p_mails">${(contacts(p.mails).length?contacts(p.mails):[{label:'',value:''}]).map(t=>cRow('mail',t.label,t.value)).join('')}</div>
+         <button class="link" id="p_addm">${I('plus',16)} Ajouter une adresse</button></div>
+       <div style="margin:6px 0 14px">
+         <label class="check"><input type="checkbox" id="p_co"${p.coach?' checked':''}> Un parent est coach</label>
+         <label class="check"><input type="checkbox" id="p_ac"${p.actif?' checked':''}> Actif dans l'effectif</label>
+       </div>
+       <button class="btn wide" id="p_ok">${I('check',18)} Enregistrer</button>
+       ${id?`<button class="btn danger wide" style="margin-top:8px" id="p_del">${I('trash',17)} Supprimer le joueur</button>`:''}
+     </div></div>`,ov=>{
+       const addRow=(sel,kind)=>{
+         const box=ov.querySelector(sel), d=document.createElement('div');
+         d.innerHTML=cRow(kind,'','');box.appendChild(d.firstElementChild);
+         box.lastElementChild.querySelector('.lb').focus();
+       };
+       ov.querySelector('#p_addt').onclick=()=>addRow('#p_tels','tel');
+       ov.querySelector('#p_addm').onclick=()=>addRow('#p_mails','mail');
+       const readRows=(sel,kind)=>[...ov.querySelectorAll(sel+' .crow')]
+         .map(r=>({label:r.querySelector('.lb').value.trim(),value:r.querySelector('.vl').value.trim()}))
+         .filter(x=>x.value).map((x,i)=>({label:x.label||autoLabel(x.value,i,kind),value:x.value}));
+       ov.querySelector('#p_ok').onclick=()=>{
+         const g=s=>ov.querySelector(s).value.trim();
+         const o={nom:g('#p_n'),prenom:g('#p_p'),licence:g('#p_l'),annee:g('#p_a'),sexe:g('#p_s'),commune:g('#p_c'),
+           mails:readRows('#p_mails','mail'),tels:readRows('#p_tels','tel'),
+           coach:ov.querySelector('#p_co').checked,actif:ov.querySelector('#p_ac').checked};
+         if(!o.nom&&!o.prenom){toast('Nom ou prénom requis');return}
+         if(id)Object.assign(P(id),o);else S.players.push(Object.assign({id:uid()},o));
+         save();ov.remove();render();
+       };
+       const d=ov.querySelector('#p_del');
+       if(d)d.onclick=()=>{
+         if(!confirm('Supprimer ce joueur ?'))return;
+         const av=snap();
+         S.players=S.players.filter(x=>x.id!==id);
+         S.matches.forEach(m=>['convoques','absents','transport','bar','lavage'].forEach(k=>m[k]=(m[k]||[]).filter(x=>x!==id)));
+         save();ov.remove();render();toast('Joueur supprimé','trash',av);
+       };
+     });
+ },
+
+ editStaff(id){
+   const s=id?ST(id):{prenom:'',nom:'',licence:'',annee:'',commune:'',mails:[],tels:[],joueur:''};
+   const opts=S.players.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr'))
+     .map(p=>`<option value="${p.id}"${s.joueur===p.id?' selected':''}>${esc(p.prenom+' '+p.nom)}</option>`).join('');
+   sheet(id?coachName(id):'Nouveau coach',`
+     <div class="card"><div class="card-b">
+       <div class="grid2">
+         <label class="f"><span>Nom</span><input id="k_n" value="${esc(s.nom)}"></label>
+         <label class="f"><span>Prénom</span><input id="k_p" value="${esc(s.prenom)}"></label>
+         <label class="f"><span>Licence</span><input id="k_l" value="${esc(s.licence||'')}"></label>
+         <label class="f"><span>Année de naissance</span><input id="k_a" inputmode="numeric" value="${esc(s.annee||'')}"></label>
+       </div>
+       <label class="f"><span>Commune</span><input id="k_c" value="${esc(s.commune||'')}"></label>
+       <div class="f"><span>Téléphones</span>
+         <div id="k_tels">${(contacts(s.tels).length?contacts(s.tels):[{label:'',value:''}]).map(t=>cRow('tel',t.label,t.value)).join('')}</div>
+         <button class="link" id="k_addt">${I('plus',16)} Ajouter un numéro</button></div>
+       <div class="f"><span>Mails</span>
+         <div id="k_mails">${(contacts(s.mails).length?contacts(s.mails):[{label:'',value:''}]).map(t=>cRow('mail',t.label,t.value)).join('')}</div>
+         <button class="link" id="k_addm">${I('plus',16)} Ajouter une adresse</button></div>
+       <label class="f"><span>Parent d'un joueur de l'équipe</span>
+         <select id="k_j"><option value="">— aucun —</option>${opts}</select></label>
+       <p class="tiny" style="margin-bottom:14px">Si un joueur est rattaché, sa famille est exemptée des roulements.</p>
+       <button class="btn wide" id="k_ok">${I('check',18)} Enregistrer</button>
+       ${id?`<button class="btn danger wide" style="margin-top:8px" id="k_del">${I('trash',17)} Supprimer le coach</button>`:''}
+     </div></div>`,ov=>{
+       const addRow=(sel,kind)=>{
+         const box=ov.querySelector(sel), d=document.createElement('div');
+         d.innerHTML=cRow(kind,'','');box.appendChild(d.firstElementChild);
+         box.lastElementChild.querySelector('.lb').focus();
+       };
+       ov.querySelector('#k_addt').onclick=()=>addRow('#k_tels','tel');
+       ov.querySelector('#k_addm').onclick=()=>addRow('#k_mails','mail');
+       const readRows=(sel,kind)=>[...ov.querySelectorAll(sel+' .crow')]
+         .map(r=>({label:r.querySelector('.lb').value.trim(),value:r.querySelector('.vl').value.trim()}))
+         .filter(x=>x.value).map((x,i)=>({label:x.label||autoLabel(x.value,i,kind),value:x.value}));
+       ov.querySelector('#k_ok').onclick=()=>{
+         const g=x=>ov.querySelector(x).value.trim();
+         const o={prenom:g('#k_p'),nom:g('#k_n'),licence:g('#k_l'),annee:g('#k_a'),commune:g('#k_c'),
+           tels:readRows('#k_tels','tel'),mails:readRows('#k_mails','mail'),joueur:g('#k_j')};
+         if(!o.prenom&&!o.nom){toast('Nom ou prénom requis');return}
+         if(id)Object.assign(ST(id),o);
+         else{
+           const ns=Object.assign({id:uid()},o);S.staff.push(ns);
+           S.matches.forEach(m=>{m.staff=m.staff||[];if(!m.staff.includes(ns.id))m.staff.push(ns.id)});
+         }
+         if(o.joueur&&P(o.joueur))P(o.joueur).coach=true;
+         save();ov.remove();render();
+       };
+       const d=ov.querySelector('#k_del');
+       if(d)d.onclick=()=>{
+         if(!confirm('Supprimer ce coach ?'))return;
+         const av=snap();
+         S.staff=S.staff.filter(x=>x.id!==id);
+         S.matches.forEach(m=>m.staff=(m.staff||[]).filter(x=>x!==id));
+         save();ov.remove();render();toast('Coach supprimé','trash',av);
+       };
+     });
+ },
+
+ /* -- planification multi-matchs -- */
+ plan(){
+   const today=new Date().toISOString().slice(0,10);
+   const dispo=sortedMatches().filter(m=>(m.date||'')>=today);
+   if(!dispo.length){toast('Aucun match à venir');return}
+   const st={
+     ids:new Set(dispo.filter(m=>!isReady(m)).map(m=>m.id)),
+     tasks:{transport:true,bar:true,lavage:true},
+     mode:'fill', convoquer:false
+   };
+   if(!st.ids.size)dispo.forEach(m=>st.ids.add(m.id));
+
+   const ov=sheet('Planifier plusieurs matchs',`<div id="pl"></div>`,()=>{});
+   const box=ov.querySelector('#pl');
+
+   function draw(){
+     const ids=[...st.ids];
+     const res=ids.length?planCompute(ids,st.tasks,st.mode,st.convoquer):null;
+     const cl=res&&res.clone;
+     const nm=(a,n)=>!a||!a.length?'<span class="miss">—</span>'
+       :a.map(id=>esc(pre(id))).join(', ')+(a.length<n?' <span class="miss">+'+(n-a.length)+'</span>':'');
+     const lignes=cl?res.ordre.map(id=>{
+       const m=cl.matches.find(x=>x.id===id), o=S.matches.find(x=>x.id===id), dom=m.lieu==='domicile';
+       const chg=k=>((m[k]||[]).join()!==((o&&o[k])||[]).join())?' class="chg"':'';
+       const d=new Date(m.date+'T12:00:00');
+       return `<tr>
+         <td class="mt"><b>${esc(m.adversaire||'?')}</b><span class="sub">${isNaN(d)?'':d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})} · ${dom?'dom.':'ext.'}</span></td>
+         <td${chg(dom?'bar':'transport')}>${dom?nm(m.bar,2):nm(m.transport,nbTransport(m))}</td>
+         <td${chg('lavage')}>${nm(m.lavage,1)}</td>
+       </tr>`;
+     }).join(''):'';
+
+     /* équité obtenue après application */
+     let bilan='';
+     if(cl){
+       const back=S;S=cl;const c=counts(null);S=back;
+       const el=eligible().map(p=>c[p.id].total);
+       if(el.length)bilan=`Après application : écart de ${Math.max(...el)-Math.min(...el)} tour(s) entre familles.`;
+     }
+
+     box.innerHTML=`
+     <div class="card"><div class="card-b">
+       <div class="f"><span>Matchs concernés — ${st.ids.size} sur ${dispo.length}</span>
+         <div class="row" style="gap:14px;margin-bottom:8px">
+           <button class="link subtle" data-act="all">Tous</button>
+           <button class="link subtle" data-act="none">Aucun</button>
+           <button class="link subtle" data-act="todo">Ceux à compléter</button>
+         </div>
+         <div class="pllist">${dispo.map(m=>{
+           const d=new Date(m.date+'T12:00:00');
+           return `<label class="plitem"><input type="checkbox" data-id="${m.id}"${st.ids.has(m.id)?' checked':''}>
+             <span><b>${esc(m.adversaire||'?')}</b><span class="sub">${isNaN(d)?'':d.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})} · ${m.lieu==='domicile'?'domicile':'extérieur'}${isReady(m)?' · complet':''}</span></span></label>`;
+         }).join('')}</div>
+       </div>
+       <div class="f"><span>Tours à attribuer</span>
+         <div class="chips">
+           <button class="chip" data-task="transport" data-on="${st.tasks.transport?1:0}">${I('car',15)} Transport</button>
+           <button class="chip" data-task="bar" data-on="${st.tasks.bar?1:0}">${I('cup',15)} Bar</button>
+           <button class="chip" data-task="lavage" data-on="${st.tasks.lavage?1:0}">${I('shirt',15)} Maillots</button>
+         </div>
+       </div>
+       <div class="f"><span>Méthode</span>
+         <div class="seg meth">
+           <button type="button" data-mode="fill" aria-pressed="${st.mode==='fill'}">${I('plus',16)} Compléter</button>
+           <button type="button" data-mode="all" aria-pressed="${st.mode==='all'}">${I('refresh',16)} Tout refaire</button>
+         </div>
+         <p class="tiny" style="margin-top:7px">${st.mode==='fill'
+           ?'Les désignations déjà faites sont conservées, seules les places vides sont pourvues.'
+           :'Les désignations existantes sont effacées et recalculées.'}</p>
+       </div>
+       <label class="check" style="margin-bottom:4px"><input type="checkbox" data-conv${st.convoquer?' checked':''}> Convoquer tout l'effectif si aucun joueur n'est convoqué</label>
+     </div></div>
+
+     <div class="sec-title">${I('scale',17)} Aperçu</div>
+     <div class="card">
+       ${st.ids.size?`<div class="tbl-wrap"><table class="recap plprev">
+         <thead><tr><th class="mt">Match</th><th>Transport / Bar</th><th>${I('shirt',14)} Maillots</th></tr></thead>
+         <tbody>${lignes}</tbody></table></div>`
+        :'<div class="empty">Sélectionnez au moins un match.</div>'}
+     </div>
+     ${bilan?`<p class="tiny" style="margin-top:9px">${esc(bilan)} Les lignes surlignées sont celles qui changent.</p>`:''}
+     <button class="btn wide" style="margin-top:14px" data-act="apply"${st.ids.size?'':' disabled'}>${I('check',18)} Appliquer à ${st.ids.size} match${st.ids.size>1?'s':''}</button>`;
+
+     box.querySelectorAll('input[type=checkbox][data-id]').forEach(cb=>{
+       cb.onchange=()=>{cb.checked?st.ids.add(cb.dataset.id):st.ids.delete(cb.dataset.id);draw()};
+     });
+     box.querySelectorAll('[data-task]').forEach(b=>{
+       b.onclick=()=>{st.tasks[b.dataset.task]=!st.tasks[b.dataset.task];draw()};
+     });
+     box.querySelectorAll('[data-mode]').forEach(b=>{
+       b.onclick=()=>{st.mode=b.dataset.mode;draw()};
+     });
+     const cv=box.querySelector('[data-conv]');
+     if(cv)cv.onchange=()=>{st.convoquer=cv.checked;draw()};
+     box.querySelectorAll('[data-act]').forEach(b=>{
+       b.onclick=()=>{
+         const a=b.dataset.act;
+         if(a==='all'){dispo.forEach(m=>st.ids.add(m.id));draw()}
+         else if(a==='none'){st.ids.clear();draw()}
+         else if(a==='todo'){st.ids.clear();dispo.filter(m=>!isReady(m)).forEach(m=>st.ids.add(m.id));draw()}
+         else if(a==='apply'){
+           const avantPlan=snap();
+           const r=planCompute([...st.ids],st.tasks,st.mode,st.convoquer);
+           r.ordre.forEach(id=>{
+             const src=r.clone.matches.find(x=>x.id===id), dst=S.matches.find(x=>x.id===id);
+             if(!src||!dst)return;
+             ['convoques','absents','transport','bar','lavage'].forEach(k=>dst[k]=(src[k]||[]).slice());
+           });
+           save();ov.remove();render();
+           toast(r.ordre.length+' match'+(r.ordre.length>1?'s planifiés':' planifié'),'check',avantPlan);
+         }
+       };
+     });
+   }
+   draw();
+ },
+
+ /* -- imports -- */
+ importPlayers(){
+   sheet('Importer des joueurs',`
+   <div class="card"><div class="card-b">
+     ${dzHtml('dz_p','Excel (.xlsx), CSV ou TSV — ou '+tap+' pour parcourir')}
+     <button class="btn ghost wide" style="margin-top:10px" onclick="BB.gabarit()">${I('file')} Télécharger le gabarit Excel</button>
+     <p class="tiny" style="margin:14px 0 8px">Colonnes attendues, dans cet ordre :<br>
+       Nom · Prénom · Coach ? · Licence · Année · Sexe · Commune · Mails · Tél 1 · Tél 2 · Tél 3</p>
+     <label class="f"><span>Ou collez vos lignes copiées depuis Excel</span>
+       <textarea id="i_t" placeholder="DUPONT&#9;Léo&#9;&#9;BC123456&#9;2014&#9;M&#9;GENESTON&#9;papa@mail.fr, maman@mail.fr&#9;06 11 22 33 44"></textarea></label>
+     <label class="check" style="margin-bottom:12px"><input type="checkbox" id="i_r"> Remplacer l'effectif actuel</label>
+     <button class="btn wide" id="i_ok">${I('up',18)} Importer</button>
+   </div></div>`,ov=>{
+     let rows=null;
+     dropZone('dz_p','joueurs',r=>{rows=r});
+     ov.querySelector('#i_ok').onclick=()=>{
+       const r=rows||splitLines(ov.querySelector('#i_t').value);
+       if(!r||!r.length){toast('Rien à importer');return}
+       const out=[];
+       r.forEach((c,i)=>{
+         if(i===0&&/nom/i.test(c[0]||'')&&/pr[ée]nom/i.test(c[1]||''))return;
+         if(!c[0]&&!c[1])return;
+         out.push({id:uid(),nom:c[0]||'',prenom:c[1]||'',coach:/oui|x|1/i.test(c[2]||''),
+           licence:c[3]||'',annee:c[4]||'',sexe:c[5]||'M',commune:c[6]||'',
+           mails:normContacts((c[7]||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean),'mail'),
+           tels:normContacts([c[8],c[9],c[10]].map(x=>(x||'').trim()).filter(Boolean),'tel'),
+           actif:true});
+       });
+       if(!out.length){toast('Aucune ligne reconnue');return}
+       S.players=ov.querySelector('#i_r').checked?out:S.players.concat(out);
+       save();ov.remove();render();toast(out.length+' joueur(s) importé(s)','check');
+     };
+   });
+ },
+
+ importMatches(){
+   sheet('Importer un calendrier',`
+   <div class="card"><div class="card-b">
+     ${dzHtml('dz_m','Excel (.xlsx), CSV ou TSV — ou '+tap+' pour parcourir')}
+     <button class="btn ghost wide" style="margin-top:10px" onclick="BB.gabarit()">${I('file')} Télécharger le gabarit Excel</button>
+     <p class="tiny" style="margin:14px 0 8px">Colonnes attendues :<br>
+       Date (jj/mm/aaaa) · Heure · Adversaire · D ou E · Salle · Adresse · Trajet (min)<br>
+       Salle à domicile : ${salles().length?salles().map(x=>esc(x.nom)).join(', '):'aucune salle enregistrée pour l’instant, elle sera créée à l’import'}. Trajet vide = estimé automatiquement.</p>
+     <label class="f"><span>Ou collez vos lignes copiées depuis Excel</span>
+       <textarea id="c_t" placeholder="14/09/2026&#9;14h00&#9;BC Vertou&#9;E&#9;Salle du Loiry&#9;Vertou&#9;"></textarea></label>
+     <button class="btn wide" id="c_ok">${I('up',18)} Importer</button>
+   </div></div>`,ov=>{
+     let rows=null;
+     dropZone('dz_m','matchs',r=>{rows=r});
+     ov.querySelector('#c_ok').onclick=()=>{
+       const r=rows||splitLines(ov.querySelector('#c_t').value);
+       if(!r||!r.length){toast('Rien à importer');return}
+       let n=0;
+       r.forEach((c,i)=>{
+         if(i===0&&/date/i.test(c[0]||''))return;
+         const d=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((c[0]||'').trim());
+         const iso=d?`${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`
+                   :(/^\d{4}-\d{2}-\d{2}$/.test((c[0]||'').trim())?c[0].trim():null);
+         if(!iso)return;
+         const ext=/^e/i.test((c[3]||'').trim());
+         const sal=(c[4]||'').trim();
+         /* Une salle à domicile encore inconnue est créée au passage : le calendrier
+            s'importe avant même d'avoir rempli les réglages. */
+         const home=ext?'':(registerSalle(sal)||S.settings.salleDef);
+         const m={id:uid(),date:iso,heure:normHeure(c[1]||''),adversaire:(c[2]||'').trim(),
+           lieu:ext?'exterieur':'domicile',
+           salle:ext?sal:home,
+           adresse:ext?(c[5]||'').trim():salleAdr(home),
+           depart:ext?(S.settings.salleDef||home):home,
+           trajet:ext?(+(c[6]||0)||0):0,
+           convoques:[],transport:[],bar:[],lavage:[],staff:S.staff.map(x=>x.id)};
+         if(ext&&!m.trajet){
+           const e=estimTrajet(m.depart,m.adresse);
+           if(e)m.trajet=e.min;
+         }
+         S.matches.push(m);n++;
+       });
+       if(!n){toast('Aucune date reconnue');return}
+       save();ov.remove();render();toast(n+' match(s) importé(s)','check');
+     };
+   });
+ },
+
+ /* -- exports -- */
+ gabarit(){
+   loadXLSX().then(X=>{
+     const wb=X.utils.book_new();
+     const notice=[['Gabarit d\u2019import — gestion de l\u2019équipe'],[],
+       ['Remplissez l\u2019onglet Joueurs et/ou l\u2019onglet Matchs, une ligne par élément.'],
+       ['Supprimez les lignes d\u2019exemple avant l\u2019import.'],
+       ['Ne déplacez pas les colonnes et n\u2019en insérez pas.'],[],
+       ['Joueurs — Coach ? : mettez x si un parent du joueur est coach.'],
+       ['Joueurs — Mails : plusieurs adresses séparées par une virgule.'],[],
+       ['Matchs — Date : jj/mm/aaaa. Heure : 14h00 ou 14:00.'],
+       ['Matchs — Lieu : D pour domicile, E pour extérieur.'],
+       ['Matchs — Salle à domicile : '+(salles().map(x=>x.nom).join(', ')||'le nom que vous utiliserez, il sera créé à l’import')+'.'],
+       ['Matchs — Trajet : laissez vide, il sera estimé automatiquement.']];
+     const joueurs=[['Nom','Prénom','Coach ?','Licence','Année naissance','Sexe','Commune','Mails','Tél 1','Tél 2','Tél 3'],
+       ['DUPONT','Léo','','BC123456','2014','M','GENESTON','sophie.dupont@mail.fr, marc.dupont@mail.fr','06 11 22 33 44','02 40 00 00 00',''],
+       ['MARTIN','Noa','x','BC654321','2015','M','MONTBERT','famille.martin@mail.fr','06 55 66 77 88','','']];
+     const matchs=[['Date','Heure','Adversaire','Lieu (D ou E)','Salle','Adresse','Trajet aller (min)'],
+       ['14/09/2026','14h00','BC Vertou','E','Salle du Loiry','Rue du Loiry, Vertou',''],
+       ['21/09/2026','16h30','Aigrefeuille BC','D','Montbert','','']];
+     const s1=X.utils.aoa_to_sheet(notice); s1['!cols']=[{wch:96}];
+     const s2=X.utils.aoa_to_sheet(joueurs); s2['!cols']=[18,14,9,13,15,7,20,44,16,16,16].map(w=>({wch:w}));
+     const s3=X.utils.aoa_to_sheet(matchs); s3['!cols']=[13,10,26,13,26,34,17].map(w=>({wch:w}));
+     X.utils.book_append_sheet(wb,s1,'Notice');
+     X.utils.book_append_sheet(wb,s2,'Joueurs');
+     X.utils.book_append_sheet(wb,s3,'Matchs');
+     X.writeFile(wb,'gabarit-import-equipe.xlsx');
+     toast('Gabarit téléchargé','check');
+   }).catch(()=>toast('Téléchargement impossible hors ligne'));
+ },
+ exportPlayers(){
+   loadXLSX().then(X=>{
+     const head=['Nom','Prénom','Coach ?','Licence','Année naissance','Sexe','Commune','Mails','Tél 1','Tél 2','Tél 3'];
+     const rows=[...S.players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>{
+       const t=contacts(p.tels);
+       return [p.nom,p.prenom,(p.coach||staffOf(p.id).length)?'x':'',p.licence,p.annee,p.sexe,p.commune,
+         contacts(p.mails).map(x=>x.value).join(', '),
+         (t[0]||{}).value||'',(t[1]||{}).value||'',(t[2]||{}).value||''];
+     });
+     const coach=[[],['Coachs'],['Nom','Prénom','','Licence','Année','','Commune','Mails','Tél 1','Tél 2','Tél 3']]
+       .concat(S.staff.map(s=>{
+         const t=contacts(s.tels);
+         return [s.nom,s.prenom,'',s.licence||'',s.annee||'','',s.commune||'',
+           contacts(s.mails).map(x=>x.value).join(', '),(t[0]||{}).value||'',(t[1]||{}).value||'',(t[2]||{}).value||''];
+       }));
+     const ws=X.utils.aoa_to_sheet([head].concat(rows,coach));
+     ws['!cols']=[18,14,9,13,15,7,20,44,16,16,16].map(w=>({wch:w}));
+     const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'Joueurs');
+     X.writeFile(wb,'effectif-'+(S.settings.equipe||'equipe').replace(/\W+/g,'-')+'.xlsx');
+     toast('Effectif exporté','check');
+   }).catch(()=>toast('Export impossible hors ligne'));
+ },
+ exportMatches(){
+   loadXLSX().then(X=>{
+     const head=['Date','Heure','Adversaire','Lieu','Salle','Adresse','Départ de','Trajet (min)',
+                 'RDV','Arrivée','Coachs','Convoqués','Transport','Bar','Maillots'];
+     const rows=sortedMatches().map(m=>{
+       const t=times(m), nm=a=>(a||[]).map(id=>pre(id)).join(', ');
+       const d=new Date(m.date+'T12:00:00');
+       return [isNaN(d)?m.date:d.toLocaleDateString('fr-FR'),toHM(toMin(m.heure)),m.adversaire,
+         m.lieu==='domicile'?'Domicile':'Extérieur',m.salle||'',m.adresse||'',m.depart||'',m.trajet||'',
+         toHM(t.rdv),toHM(t.arrivee),(m.staff||[]).map(id=>coachName(id)).join(', '),
+         nm(m.convoques),nm(m.transport),nm(m.bar),nm(m.lavage)];
+     });
+     const c=counts(null);
+     const eq=[[],['Équité — cumul par famille'],['Joueur','Transport','Bar','Maillots','Total','Convocations']]
+       .concat([...S.players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'))
+         .map(p=>[p.prenom+' '+p.nom,c[p.id].transport,c[p.id].bar,c[p.id].lavage,c[p.id].total,c[p.id].convocs]));
+     const ws=X.utils.aoa_to_sheet([head].concat(rows,eq));
+     ws['!cols']=[12,8,24,12,24,30,14,11,9,9,22,40,26,26,20].map(w=>({wch:w}));
+     const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'Matchs');
+     X.writeFile(wb,'calendrier-'+(S.settings.equipe||'equipe').replace(/\W+/g,'-')+'.xlsx');
+     toast('Calendrier exporté','check');
+   }).catch(()=>toast('Export impossible hors ligne'));
+ },
+ restore(){
+   sheet('Restaurer une sauvegarde',`
+   <div class="card"><div class="card-b">
+     <div class="warn" style="margin-top:0;margin-bottom:14px">La restauration remplace intégralement les joueurs, coachs, matchs, roulements et réglages actuels. Exportez d'abord une sauvegarde si vous avez un doute.</div>
+     ${dzHtml('dz_r','Fichier .json exporté depuis cet outil')}
+     <label class="f" style="margin-top:14px"><span>Ou collez le contenu de la sauvegarde</span>
+       <textarea id="r_t" placeholder='{"settings":{...},"players":[...]}'></textarea></label>
+     <button class="btn danger wide" id="r_ok">${I('save',17)} Restaurer</button>
+   </div></div>`,ov=>{
+     let brut=null;
+     const dz=ov.querySelector('#dz_r'), inp=dz.querySelector('input[type=file]');
+     const lire=fi=>{
+       if(!fi)return;
+       const fr=new FileReader();
+       fr.onload=()=>{brut=String(fr.result);dz.querySelector('.dzt').textContent=fi.name+' — prêt à restaurer'};
+       fr.onerror=()=>dz.querySelector('.dzt').textContent='Fichier illisible';
+       fr.readAsText(fi,'utf-8');
+     };
+     dz.onclick=e=>{if(e.target!==inp)inp.click()};
+     inp.onchange=()=>lire(inp.files[0]);
+     ['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('over')}));
+     ['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('over')}));
+     dz.addEventListener('drop',ev=>lire(ev.dataTransfer.files[0]));
+     ov.querySelector('#r_ok').onclick=()=>{
+       const txt=(brut||ov.querySelector('#r_t').value||'').trim();
+       if(!txt){toast('Aucune sauvegarde fournie');return}
+       let d;
+       try{d=JSON.parse(txt)}catch(e){toast('Fichier illisible : ce n\u2019est pas du JSON valide');return}
+       if(!d||typeof d!=='object'||!Array.isArray(d.players)||!Array.isArray(d.matches)){
+         toast('Ce fichier n\u2019est pas une sauvegarde de l\u2019outil');return;
+       }
+       if(!confirm('Restaurer '+d.players.length+' joueur(s) et '+d.matches.length+' match(s) ?\n\nLes données actuelles seront remplacées.'))return;
+       const av=snap();
+       S=d;migrate();save();
+       view={tab:'matchs',match:null,expP:null,expC:null};
+       ov.remove();render();
+       toast('Sauvegarde restaurée','check',av);
+     };
+   });
+ },
+ exportJson(){
+   const t=JSON.stringify(S,null,2);
+   try{
+     const d=new Date().toISOString().slice(0,10);
+     download('sauvegarde-equipe-'+d+'.json',t,'application/json');
+     toast('Sauvegarde téléchargée','check');
+   }catch(e){
+     sheet('Sauvegarde',`<div class="card"><div class="card-b">
+       <p class="muted" style="margin-bottom:10px">Copiez ce texte et conservez-le.</p>
+       <label class="f"><textarea readonly style="min-height:240px">${esc(t)}</textarea></label></div></div>`);
+   }
+ },
+
+ /* -- réglages -- */
+ addSalle(){
+   const box=document.querySelector('#s_salles'), d=document.createElement('div');
+   d.innerHTML=sRow({id:uid(),nom:'',adresse:''});
+   box.appendChild(d.firstElementChild);
+   box.lastElementChild.querySelector('.s-nom').focus();
+ },
+ saveSettings(){
+   const g=s=>document.querySelector(s).value.trim();
+   const av=snap();
+   const touches=applySalles(S.matches.some(m=>m.lieu==='domicile'));
+   if(touches<0)return;
+   S.settings.equipe=g('#s_eq');
+   S.settings.avant=+g('#s_av')||45;
+   S.settings.exemptStaff=document.querySelector('#s_ex').checked;
+   save();render();toast('Réglages enregistrés','check',touches?av:null);
+ },
+ saveTpl(){
+   S.settings.tplDom=document.querySelector('#s_td').value;
+   S.settings.tplExt=document.querySelector('#s_te').value;
+   save();toast('Modèles enregistrés','check');
+ },
+ resetTpl(){S.settings.tplDom=TPL_DOM;S.settings.tplExt=TPL_EXT;save();render();toast('Modèles réinitialisés')},
+ wipe(){
+   if(!confirm('Effacer tous les joueurs, coachs, matchs et roulements ?\n\nLes réglages, les salles et les modèles de message sont conservés.'))return;
+   const av=snap();
+   S.players=[];S.staff=[];S.matches=[];
+   save();view={tab:'joueurs',match:null,expP:null,expC:null};render();
+   toast('Tout a été effacé','trash',av);
+ }
+};
+window.BB=BB;
+
+/* Échap ferme la feuille ouverte la plus récente. */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  const l=document.querySelectorAll('.ov');
+  if(!l.length)return;
+  e.preventDefault();
+  l[l.length-1].remove();
+});
+
+/* suppression d'une ligne de salle */
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('.s-del');
+  if(!b)return;
+  e.preventDefault();
+  const box=document.querySelector('#s_salles');
+  if(box&&box.querySelectorAll('.salle').length<=1&&S.matches.some(m=>m.lieu==='domicile')){
+    toast('Gardez au moins une salle : des matchs se jouent à domicile');return;
+  }
+  const li=b.closest('.salle'), etaitDef=li.querySelector('.s-def input').checked;
+  li.remove();
+  if(etaitDef&&box){
+    const r=box.querySelector('.s-def input');
+    if(r)r.checked=true;
+  }
+});
+
+/* ============ démarrage ============ */
+(async function(){
+  S=await load();
+  if(!S)S=blank();
+  migrate();
+  await save();
+  render();
+  loadXLSX().catch(()=>{});
+})();
+})();
+</script>
+
+<script>
+/* Service worker : l'application reste utilisable au gymnase, sans réseau. */
+if('serviceWorker' in navigator)
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>

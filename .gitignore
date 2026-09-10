@@ -1,0 +1,11 @@
+.DS_Store
+Thumbs.db
+node_modules/
+.netlify/
+*.log
+
+# sauvegardes locales : contiennent des données personnelles, jamais versionnées
+sauvegarde-equipe-*.json
+
+# configuration locale de l'agent et du serveur de prévisualisation
+.claude/
