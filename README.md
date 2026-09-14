@@ -52,21 +52,56 @@ Dans **Settings → Pages → Source**, choisissez *GitHub Actions*. Le workflow
 
 ## Structure
 
+Aucune étape de build : les fichiers sont servis tels quels, le JavaScript en
+modules ES natifs. Le code est rangé par fonctionnalité, chaque écran portant sa
+vue et ses actions.
+
 ```
 site/
-  index.html      l'application entière, autonome
-  manifest.json   installation sur l'écran d'accueil
-  sw.js           cache local, fonctionne hors ligne
-  icon*.png/svg   icônes
-netlify.toml      configuration de déploiement
+  index.html            coquille : en-tête, conteneur, chargement du script
+  css/styles.css        styles, thème clair et sombre, téléphone puis ordinateur
+  js/
+    main.js             point d'entrée : actions (objet BB), écouteurs, démarrage
+    core/
+      state.js          état de l'application et stockage local
+      utils.js          échappement HTML, dates et heures
+      icons.js          icônes SVG
+    domain/             calculs, sans interface
+      model.js          accès aux données, état vierge, migration
+      trajets.js        estimation des temps de trajet
+      roulements.js     équité, cycle des maillots, planification groupée
+      message.js        modèles et texte des convocations
+      agenda.js         export .ics
+    ui/
+      components.js     feuilles de saisie, messages, copie
+      forms.js          gabarits de saisie partagés (contacts, salles)
+      files.js          Excel/CSV, zones de dépôt, téléchargements
+    screens/            un fichier par écran : vue et actions
+      layout.js         en-tête, onglets, aiguillage
+      onboarding.js     premier démarrage
+      matchs.js         calendrier et fiche de match
+      match-form.js     création et modification d'un match
+      planification.js  planification de plusieurs matchs
+      effectif.js       joueurs et coachs
+      recap.js          qui fait quoi
+      equite.js         répartition des tours
+      reglages.js       réglages, import, export, sauvegarde
+  manifest.json         installation sur l'écran d'accueil
+  sw.js                 cache local, fonctionne hors ligne
+  icon*.png/svg         icônes
+netlify.toml            configuration de déploiement
 ```
+
+Les boutons du HTML généré appellent les actions par `onclick="BB.nom()"` ;
+`main.js` assemble l'objet `BB` à partir des actions de chaque écran.
 
 ## Premier démarrage
 
 À l'ouverture d'une installation neuve, l'outil propose :
 
-1. **L'équipe** — son nom, puis l'effectif : saisie manuelle, import Excel, ou
-   restauration d'une sauvegarde JSON existante.
+1. **L'équipe** — son nom, puis l'effectif : saisie manuelle, import Excel, import
+   des joueurs et coachs d'une sauvegarde JSON, ou restauration complète de cette
+   sauvegarde (matchs et réglages compris).
 2. **Les matchs** — ajout un par un ou import du calendrier. La salle indiquée pour
    un match à domicile est enregistrée au passage, et se retrouve à l'étape suivante.
 3. **Les salles** — adresses, salle par défaut, et délai d'arrivée avant le match.
@@ -93,4 +128,11 @@ l'export Excel. Tout le reste fonctionne sans réseau.
 
 ## Mise à jour
 
-Modifiez `site/index.html`, commitez, poussez. Le déploiement suit.
+Modifiez les fichiers de `site/`, commitez, poussez. Le déploiement suit.
+
+- **Nouveau module JavaScript** : ajoutez-le à la liste `FILES` de `site/sw.js`,
+  sinon la première visite hors ligne échouera, et augmentez le numéro de
+  `CACHE`.
+- **Tester en local** : les modules ES ne se chargent pas en ouvrant
+  `index.html` directement depuis le disque. Servez le dossier :
+  `npx serve site`, puis ouvrez l'adresse indiquée.
